@@ -115,7 +115,6 @@ import { ref, computed, onMounted } from 'vue';
 import { CFormFloating, CFormInput, CButton, CFormSelect, CRow, CCol } from '@coreui/vue';
 import apiClient from '../axios/axios';
 import { useStore } from 'vuex';
-import router from '@/router/router';
   
 const store = useStore();
 
@@ -167,9 +166,7 @@ const registerUser = () => {
     apiClient.post('authentication/register', user.value)
       .then((response) => {
         if (response.data === true) {
-          alert('Registration successful');
-          store.dispatch('setUser', user.value);
-          router.push('/');
+          alert('Registration successful, please validate your email');
         }
       })
       .catch((error) => {

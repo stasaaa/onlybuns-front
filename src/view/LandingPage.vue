@@ -1,16 +1,16 @@
 <template>
-    <div v-if="users.length > 0">
-            <ul>
-                <li v-for="user in users" :key="user.id">{{ user.username }}</li>
-            </ul>
-        </div>
+    <div>
+      <p>{{ user.id }}</p>
+    </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, computed } from 'vue';
+import { useStore } from 'vuex';
 // import apiClient from '../axios/axios';
 
-const users = ref([]);
+const store = useStore();
+const user = computed(() => store.getters.getUser);
 
 onMounted(async () => {
 });
