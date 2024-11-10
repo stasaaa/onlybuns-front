@@ -1,6 +1,7 @@
 import LandingPage from '@/view/LandingPage.vue';
 import LogIn from '@/view/LogIn.vue';
 import RegisterUser from '@/view/RegisterUser.vue';
+import ActivateAccount from '@/view/ActivateAccount.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
 const routes = [
@@ -18,6 +19,11 @@ const routes = [
     path: '/login',
     name: 'LogIn',
     component: LogIn
+  },
+  {
+    path: '/activate',
+    name: 'ActivateAccount',
+    component: ActivateAccount
   }
 ];
 
