@@ -53,8 +53,26 @@ const login = () => {
 
     }).catch((error) => {
         console.log(error);
-        alert(error.response.data);
-    })
+        
+        if (error.response) {
+            const statusCode = error.response.status; // Get the HTTP status code
+            
+            // Check for specific status codes
+            if (statusCode === 401) {
+                alert('Invalid username or password');
+            } else if (statusCode === 403) {
+                // Show the message returned in the response body (if available)
+                const errorMessage = error.response.data;
+                alert(errorMessage);
+            } else {
+                // Default message for all other errors
+                alert('An unknown error occurred.');
+            }
+        } else {
+            // If there's no response (network error), display a generic message
+            alert('Network error. Please try again later.');
+        }
+    });
 }
 </script>
 
