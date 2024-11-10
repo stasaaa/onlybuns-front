@@ -1,16 +1,19 @@
 <template>
   <NavBar></NavBar>
+  <MapComponent/>
   <router-view></router-view>
 </template>
 
 <script>
 import '@coreui/coreui/dist/css/coreui.min.css'
 import NavBar from './components/NavBar.vue'
+import MapComponent from './components/MapComponent.vue';
 
 export default {
   name: 'App',
   components: {
-    NavBar
+    NavBar, 
+    MapComponent
   }
 }
 </script>
