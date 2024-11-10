@@ -7,7 +7,7 @@
                         v-model="email"></CFormInput>
                     <CFormInput type="password" id="password" floating-label="Password" placeholder="password123" 
                         v-model="password"></CFormInput>
-                    <CButton color="primary" v-on:click="login">LogIn</CButton>
+                    <CButton color="primary" v-on:click.prevent="login">LogIn</CButton>
                 </CFormFloating>
             </CCol>
         </CRow>
@@ -32,12 +32,47 @@ const login = () => {
         password: password.value
     })
     .then((response) => {
-        store.dispatch('setUser', response.data);
-        router.push('/');
+        store.dispatch('setToken', response.data.token);
+        var token = response.data.token
+        apiClient.get('authentication/userDetails', {
+            params: {
+                email: email.value
+            },
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            store.dispatch('setUser', response.data)
+            sessionStorage.setItem('authToken', token);
+            router.push('/');
+        })
+        .catch(error => {
+            console.error(error);
+        });
+
     }).catch((error) => {
         console.log(error);
-        alert(error.response.data);
-    })
+        
+        if (error.response) {
+            const statusCode = error.response.status; // Get the HTTP status code
+            
+            // Check for specific status codes
+            if (statusCode === 401) {
+                alert('Invalid username or password');
+            } else if (statusCode === 403) {
+                // Show the message returned in the response body (if available)
+                const errorMessage = error.response.data;
+                alert(errorMessage);
+            } else {
+                // Default message for all other errors
+                alert('An unknown error occurred.');
+            }
+        } else {
+            // If there's no response (network error), display a generic message
+            alert('Network error. Please try again later.');
+        }
+    });
 }
 </script>
 
