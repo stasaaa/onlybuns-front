@@ -42,9 +42,12 @@ const login = () => {
                 'Authorization': `Bearer ${token}`
             }
         })
-        .then(response => {
-            store.dispatch('setUser', response.data)
-            sessionStorage.setItem('authToken', token);
+        .then(userResponse => {
+            const userData = userResponse.data;
+            
+            store.dispatch('setUser', userData);
+            sessionStorage.setItem('user', JSON.stringify(userData));
+
             router.push('/');
         })
         .catch(error => {

@@ -3,7 +3,7 @@ import { createStore } from 'vuex';
 const store = createStore({
   state() {
     return {
-      user: {
+      user: JSON.parse(sessionStorage.getItem('user')) || {
         id: -1,
         email: '',
         name: '',
@@ -18,7 +18,7 @@ const store = createStore({
           streetNumber: ''
         }
       },
-      token: '',  // Store the JWT token separately for easier management
+      token: sessionStorage.getItem('token') || '',  // Load token from sessionStorage if available
       countries: []
     };
   },
@@ -26,10 +26,12 @@ const store = createStore({
     // Mutation to set user data
     setUser(state, userData) {
       state.user = userData;
+      sessionStorage.setItem('user', JSON.stringify(userData)); // Persist user data in sessionStorage
     },
     // Mutation to set token data
     setToken(state, token) {
       state.token = token;
+      sessionStorage.setItem('token', token); // Persist token in sessionStorage
     },
     // Mutation to clear user data and token
     resetUser(state) {
@@ -48,7 +50,9 @@ const store = createStore({
           streetNumber: ''
         }
       };
-      state.token = '';  // Reset token
+      state.token = '';
+      sessionStorage.removeItem('user');  // Clear user data from sessionStorage
+      sessionStorage.removeItem('token'); // Clear token from sessionStorage
     },
     setCountries(state, countriesData) {
       state.countries = countriesData;
