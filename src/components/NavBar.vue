@@ -14,6 +14,9 @@
                 <CNavbarNav class="ms-auto"> <!-- ms-auto: pushes nav items to the right -->
             <!-- Show logout button only if the user is logged in -->
                     <CNavItem v-if="user.id !== -1">
+                        <CNavLink href="/createPost">Create Post</CNavLink>
+                    </CNavItem>
+                    <CNavItem v-if="user.id !== -1">
                         <CButton v-on:click.prevent="logout()">
                             <font-awesome-icon :icon="['fas', 'power-off']" />
                         </CButton>

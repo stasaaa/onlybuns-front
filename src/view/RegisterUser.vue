@@ -162,7 +162,7 @@ const registerUser = () => {
       alert('Please fill out all required fields correctly.');
       return;
     }
-  
+    
     apiClient.post('authentication/register', user.value)
       .then((response) => {
         if (response.data === true) {
