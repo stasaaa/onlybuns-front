@@ -8,17 +8,11 @@
 
 <script setup>
 import { onMounted, ref } from 'vue';
-import apiClient from '../axios/axios';
+// import apiClient from '../axios/axios';
 
 const users = ref([]);
 
 onMounted(async () => {
-  try {
-    const response = await apiClient.get('authentication');
-    users.value = response.data;
-  } catch (error) {
-    console.error('Error fetching users:', error);
-  }
 });
 </script>
 

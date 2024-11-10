@@ -12,10 +12,17 @@
             />
             <CFormInput
               type="text"
-              id="name"
+              id="firstName"
               floatingLabel="Name"
               placeholder="Name"
-              v-model="user.name"
+              v-model="user.firstName"
+            />
+            <CFormInput
+              type="text"
+              id="LastName"
+              floatingLabel="Surname"
+              placeholder="Surname"
+              v-model="user.lastName"
             />
             <CFormInput
               type="text"
@@ -114,7 +121,8 @@ const store = useStore();
 
 const user = ref({
     email: '',
-    name: '',
+    firstName: '',
+    lastName: '',
     username: '',
     password: '',
     passwordConfirm: '',
@@ -156,7 +164,7 @@ const registerUser = () => {
       return;
     }
   
-    apiClient.post('authentication', user.value)
+    apiClient.post('authentication/register', user.value)
       .then((response) => {
         if (response.data === true) {
           alert('Registration successful');
