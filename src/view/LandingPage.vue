@@ -1,38 +1,49 @@
 <template>
-    <div v-if="users.length > 0">
-            <ul>
-                <li v-for="user in users" :key="user.id">{{ user.username }}</li>
-            </ul>
-        </div>
+    <div class="landing-page">
+      <div class="logo-container">
+        <img src="@/assets/onlyBunsLogoCircle.png" alt="OnlyBuns Logo" class="logo">
+      </div>
+    </div>
+    <BunnyFeed></BunnyFeed>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
-import apiClient from '../axios/axios';
+import BunnyFeed from './BunnyFeed.vue';
 
-const users = ref([]);
-
-onMounted(async () => {
-  try {
-    const response = await apiClient.get('authentication');
-    users.value = response.data;
-  } catch (error) {
-    console.error('Error fetching users:', error);
-  }
-});
 </script>
 
 <style scoped>
-.container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: bisque;
-    height: 10vh;
-    padding: 20px;
+
+.landing-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: #e6ece5;
+  background-image: linear-gradient(to bottom, rgba(230, 236, 229, 1), rgba(230, 236, 229, 0));
+  background-repeat: no-repeat;
 }
 
-.link {
-    margin: 10px;
+.logo-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.logo {
+  max-width: 400px;
+  height: auto;
+}
+
+.feed-wrapper {
+  background-color: #e6ece5; /* Match landing page background */
+  padding-top: 2rem; /* Add padding as needed for spacing */
+}
+
+html {
+  scroll-behavior: smooth;
 }
 </style>

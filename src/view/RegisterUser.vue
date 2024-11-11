@@ -1,4 +1,5 @@
 <template>
+  <div class="page-wrapper">
     <div class="container">
       <CRow :xs="{ gutter: 2 }">
         <CCol md="6">
@@ -12,10 +13,17 @@
             />
             <CFormInput
               type="text"
-              id="name"
+              id="firstName"
               floatingLabel="Name"
               placeholder="Name"
-              v-model="user.name"
+              v-model="user.firstName"
+            />
+            <CFormInput
+              type="text"
+              id="LastName"
+              floatingLabel="Surname"
+              placeholder="Surname"
+              v-model="user.lastName"
             />
             <CFormInput
               type="text"
@@ -85,7 +93,7 @@
   
         <CRow>
             <CCol md="12" class="text-center">
-                <CButton :disabled="isFormInvalid" color="primary" class="submit-btn" @click="registerUser">
+                <CButton :disabled="isFormInvalid" class="submit-btn" @click="registerUser">
                     Register
                 </CButton>
             </CCol>
@@ -101,6 +109,7 @@
             </div>
         </div>
     </div>
+  </div>
 </template>
   
 <script setup>
@@ -108,13 +117,13 @@ import { ref, computed, onMounted } from 'vue';
 import { CFormFloating, CFormInput, CButton, CFormSelect, CRow, CCol } from '@coreui/vue';
 import apiClient from '../axios/axios';
 import { useStore } from 'vuex';
-import router from '@/router/router';
   
 const store = useStore();
 
 const user = ref({
     email: '',
-    name: '',
+    firstName: '',
+    lastName: '',
     username: '',
     password: '',
     passwordConfirm: '',
@@ -155,13 +164,11 @@ const registerUser = () => {
       alert('Please fill out all required fields correctly.');
       return;
     }
-  
-    apiClient.post('authentication', user.value)
+    
+    apiClient.post('authentication/register', user.value)
       .then((response) => {
         if (response.data === true) {
-          alert('Registration successful');
-          store.dispatch('setUser', user.value);
-          router.push('/');
+          alert('Registration successful, please validate your email');
         }
       })
       .catch((error) => {
@@ -180,6 +187,17 @@ const registerUser = () => {
     flex-direction: column;
     height: 80vh;
 }
+
+.page-wrapper {
+  background-image: url('@/assets/bunnyTile.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0; 
+}
   
 .registration > * {
     margin-bottom: 10px;
@@ -197,6 +215,13 @@ const registerUser = () => {
   
 .submit-btn {
     width: 100%;
+    background-color: #ed9787 !important;
+    border-color: #ed9787 !important;
+}
+
+.submit-btn:hover {
+    background-color: #f18571 !important;
+    border-color: #f18571 !important;
 }
   
 .validation-messages {
