@@ -3,6 +3,7 @@ import LogIn from '@/view/LogIn.vue';
 import RegisterUser from '@/view/RegisterUser.vue';
 import ActivateAccount from '@/view/ActivateAccount.vue';
 import CreatePost from '@/view/CreatePost.vue';
+import BunnyFeed from '@/view/BunnyFeed.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';  // Import the useStore hook
 
@@ -34,6 +35,11 @@ const routes = [
     name: 'CreatePost',
     component: CreatePost,
     meta: { requiresAuth: true },  // Add metadata for pages that require authentication
+  },
+  {
+    path: '/feed',
+    name: 'BunnyFeed',
+    component: BunnyFeed
   },
 ];
 
