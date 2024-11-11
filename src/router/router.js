@@ -2,8 +2,8 @@ import LandingPage from '@/view/LandingPage.vue';
 import LogIn from '@/view/LogIn.vue';
 import RegisterUser from '@/view/RegisterUser.vue';
 import ActivateAccount from '@/view/ActivateAccount.vue';
-import { createRouter, createWebHistory } from 'vue-router';
 import CreatePost from '@/view/CreatePost.vue';
+import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';  // Import the useStore hook
 
 const routes = [

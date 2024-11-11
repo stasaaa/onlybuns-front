@@ -1,4 +1,5 @@
 <template>
+ <div class="page-wrapper">
     <div class="container">
         <CRow>
             <CCol>
@@ -7,11 +8,12 @@
                         v-model="email"></CFormInput>
                     <CFormInput type="password" id="password" floating-label="Password" placeholder="password123" 
                         v-model="password"></CFormInput>
-                    <CButton color="primary" v-on:click.prevent="login">LogIn</CButton>
+                    <CButton class = "custom-button" v-on:click.prevent="login">Login</CButton>
                 </CFormFloating>
             </CCol>
         </CRow>
     </div>
+ </div>
 </template>
 
 <script setup>
@@ -85,8 +87,29 @@ const login = () => {
     height: 80vh;
 }
 
+.page-wrapper {
+  background-image: url('@/assets/bunnyTile.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0; 
+}
+
 .login > * {
     margin-bottom: 10px;
     width: 100%;
+}
+
+.custom-button {
+    background-color: #ed9787 !important;
+    border-color: #ed9787 !important;
+}
+
+.custom-button:hover {
+    background-color: #f18571 !important;
+    border-color: #f18571 !important;
 }
 </style>
