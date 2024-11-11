@@ -1,100 +1,133 @@
 <template>
-    <div ref="map" class="map-container" style="width: 100%; height: 100%;">
-      <!-- Leaflet map will be rendered here -->
-    </div>
-    <div v-if="selectedLocation" class="selected-location">
-      <p>Selected Location:</p>
-      <p>Latitude: {{ selectedLocation.lat }}</p>
-      <p>Longitude: {{ selectedLocation.lon }}</p>
-    </div>
-  </template>
+    <div id="mapContainer"></div>
+</template>
   
-  <script setup>
-  import { ref, onMounted, watch, defineProps} from 'vue';
-  import L from 'leaflet';
-
+  <script>
+  import "leaflet/dist/leaflet.css";
+  import L from "leaflet";
+  import axios from "axios";
   
-  // Props
-  const props = defineProps({
-    center: {
-      type: Array,
-      required: true,
-    },
-    zoom: {
-      type: Number,
-      default: 13,
-    },
-    markers: {
-      type: Array,
-      default: () => [],
-    },
+  // Fix for missing default marker icon in Leaflet
+  delete L.Icon.Default.prototype._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconUrl: require("leaflet/dist/images/marker-icon.png"),
+    iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+    shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
   });
   
-  // Refs
-  const map = ref(null);
-  const selectedLocation = ref(null); // To store selected location coordinates
+  export default {
+    name: "MapComponent",
+    data() {
+      return {
+        map: null,
+        latlng: [45.2671, 19.8335], // Default coordinates for Novi Sad
+        marker: null, // To keep track of the marker
+        address: {
+          city: "",
+          country: "",
+          street: "",
+          postalcode: "",
+          street_number: "",
+        },
+      };
+    },
+    methods: {
+      initMap() {
+        // Initialize the map
+        this.map = L.map("mapContainer", {
+          center: this.latlng,
+          zoom: 12,
+          zoomControl: true,
+          dragging: true,
+          scrollWheelZoom: true,
+          boxZoom: true,
+        });
   
-  // Map Initialization and Event Handling
-  onMounted(() => {
-    // Create the map
-    map.value = L.map(map.value).setView(props.center, props.zoom);
+        // Add tile layer to map
+        L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
+          attribution:
+            '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(this.map);
   
-    // Add the tile layer (using OpenStreetMap as an example)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map.value);
+        // Map click event listener (only one marker at a time)
+        this.map.on("click", this.handleMapClick);
+      },
+      handleMapClick(event) {
+        const { lat, lng } = event.latlng;
   
-    // Add markers if provided
-    props.markers.forEach((marker) => {
-      L.marker(marker.position)
-        .bindPopup(marker.popup)
-        .addTo(map.value);
-    });
+        // Update latlng for the map and fetch address info
+        this.latlng = [lat, lng];
+        this.updateMap();
   
-    // Event listener for click event on the map
-    map.value.on('click', (e) => {
-      const { lat, lng } = e.latlng;
-      selectedLocation.value = { lat, lon: lng }; // Update the selected location
-      updateMarker(lat, lng); // Add a marker at the clicked location
-    });
-  });
+        // Remove the existing marker if any
+        if (this.marker) {
+          this.marker.remove();
+        }
   
-  // Function to update the marker at the clicked location
-  const updateMarker = (lat, lng) => {
-    // Remove existing marker if there's one already
-    if (map.value._selectedMarker) {
-      map.value.removeLayer(map.value._selectedMarker);
-    }
+        // Create and add a new marker
+        this.marker = L.marker([lat, lng]).addTo(this.map);
   
-    // Add a new marker at the selected location
-    const marker = L.marker([lat, lng]).addTo(map.value);
-    map.value._selectedMarker = marker; // Store the reference to the marker
-  };
+        // Reverse geocode to get the address info
+        this.reverseGeocode(lat, lng);
+      },
+      reverseGeocode(lat, lng) {
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
+        axios
+          .get(url)
+          .then((response) => {
+            const addressData = response.data.address || {};
+            this.address = {
+              city: addressData.city || "",
+              country: addressData.country || "",
+              street: addressData.road || "",
+              postalcode: addressData.postcode || "",
+              street_number: addressData.house_number || "",
+            };
   
-  // Watch for changes in the center prop to update the map view
-  watch(
-    () => props.center,
-    (newCenter) => {
-      if (map.value) {
-        map.value.setView(newCenter, props.zoom);
+            // Now that we have the address, update the popup
+            this.updatePopup(lat, lng);
+          })
+          .catch((error) => {
+            console.error("Error in reverse geocoding:", error);
+          });
+      },
+      updatePopup(lat, lng) {
+        // Display the lat, lng, and address info in the popup
+        const popupContent = `
+          <b>Latitude:</b> ${lat}<br>
+          <b>Longitude:</b> ${lng}<br>
+          <b>City:</b> ${this.address.city}<br>
+          <b>Country:</b> ${this.address.country}<br>
+          <b>Street:</b> ${this.address.street}<br>
+          <b>Postal Code:</b> ${this.address.postalcode}<br>
+          <b>Street Number:</b> ${this.address.street_number}
+        `;
+  
+        // Open the popup at the clicked location
+        this.marker.bindPopup(popupContent).openPopup();
+      },
+      updateMap() {
+        // Ensure the map is fully initialized before calling setView
+        if (this.map) {
+          this.map.setView(this.latlng, 12); // Adjust zoom level as needed
+        }
+      },
+    },
+    mounted() {
+      this.initMap(); // Initialize the map after the component has been mounted
+    },
+    beforeUnmount() {
+      if (this.map) {
+        this.map.remove();
       }
-    }
-  );
+    },
+  };
   </script>
   
   <style scoped>
-  .map-container {
-    height: 100%;
-    width: 100%;
-  }
-  
-  .selected-location {
-    margin-top: 20px;
-    padding: 10px;
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-  }
-  
-  .selected-location p {
-    margin: 5px 0;
+  #mapContainer {
+    width: 50vw;
+    height: 50vh;
   }
   </style>
+  

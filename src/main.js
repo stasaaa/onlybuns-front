@@ -14,6 +14,7 @@ const app = createApp(App);
 app.use(router);
 app.use(store);
 app.use(CoreUI);
+
 app.component('font-awesome-icon', FontAwesomeIcon);
 
 app.mount('#app');
