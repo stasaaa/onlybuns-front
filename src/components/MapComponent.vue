@@ -6,13 +6,16 @@
   import "leaflet/dist/leaflet.css";
   import L from "leaflet";
   import axios from "axios";
+  import bunnyImage from "@/assets/bunny-hide.gif";
   
   // Fix for missing default marker icon in Leaflet
   delete L.Icon.Default.prototype._getIconUrl;
   L.Icon.Default.mergeOptions({
-    iconUrl: require("leaflet/dist/images/marker-icon.png"),
-    iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+    iconUrl: bunnyImage,
+    iconRetinaUrl: bunnyImage.increaseSizex2,
     shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+    iconSize: [50, 50],
+    iconAnchor: [25, 50],
   });
   
   export default {
@@ -20,7 +23,7 @@
     data() {
       return {
         map: null,
-        latlng: [45.2671, 19.8335], // Default coordinates for Novi Sad
+        latlng: [45.2502, 19.8335], // Default coordinates for Novi Sad
         marker: null, // To keep track of the marker
         address: {
           city: "",
@@ -36,7 +39,7 @@
         // Initialize the map
         this.map = L.map("mapContainer", {
           center: this.latlng,
-          zoom: 12,
+          zoom: 13,
           zoomControl: true,
           dragging: true,
           scrollWheelZoom: true,
