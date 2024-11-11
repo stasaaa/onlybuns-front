@@ -4,7 +4,6 @@ import RegisterUser from '@/view/RegisterUser.vue';
 import ActivateAccount from '@/view/ActivateAccount.vue';
 import CreatePost from '@/view/CreatePost.vue';
 import { createRouter, createWebHistory } from 'vue-router';
-import CreatePost from '@/view/CreatePost.vue';
 import { useStore } from 'vuex';  // Import the useStore hook
 
 const routes = [
