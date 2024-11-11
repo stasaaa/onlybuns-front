@@ -69,6 +69,8 @@
   
         // Reverse geocode to get the address info
         this.reverseGeocode(lat, lng);
+
+        this.$emit('map-clicked', { lat, lng, address: this.address });
       },
       reverseGeocode(lat, lng) {
         const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1`;
@@ -84,6 +86,12 @@
               street_number: addressData.house_number || "",
             };
   
+
+            this.$emit('map-clicked', {
+              lat: lat,
+              lng: lng,
+              address: this.address
+            });
             // Now that we have the address, update the popup
             this.updatePopup(lat, lng);
           })
@@ -124,9 +132,9 @@
   };
   </script>
   
-  <style scoped>
+  <style>
   #mapContainer {
-    width: 50vw;
+    width: 60vw;
     height: 50vh;
   }
   </style>
