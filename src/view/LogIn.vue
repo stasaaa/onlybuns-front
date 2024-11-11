@@ -92,7 +92,7 @@ const login = () => {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  min-height: 100vh;
+  min-height: 88.9vh;
   width: 100%;
   margin: 0;
   padding: 0; 
