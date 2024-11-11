@@ -2,11 +2,13 @@
   <div class="page-wrapper">
     <div class="feed-container">
       <h2>Bunny Feed</h2>
-      <div class="posts-grid">
+      <div class="posts-grid" >
         <CCard 
           v-for="post in posts" 
           :key="post.id" 
           class="post-card"
+          data-aos="fade-up"
+          data-aos-duration="500"
         >
           <CCardImage 
             v-if="post.image" 
@@ -59,7 +61,8 @@ onMounted(async () => {
 @import url('https://fonts.googleapis.com/css2?family=Delius+Swash+Caps&display=swap');
 
 .page-wrapper {
-  background-image: url('@/assets/bunnyTile.png');
+  background: linear-gradient(to top, rgba(230, 236, 229, 0), rgba(230, 236, 229, 1)), 
+              url('@/assets/bunnyTile.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
