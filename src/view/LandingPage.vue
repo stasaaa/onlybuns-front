@@ -1,32 +1,37 @@
 <template>
-    <div>
-      <p>{{ user.id }}</p>
+    <div class="landing-page">
+      <div class="logo-container">
+        <img src="@/assets/onlyBunsLogoCircle.png" alt="OnlyBuns Logo" class="logo">
+      </div>
     </div>
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue';
-import { useStore } from 'vuex';
-// import apiClient from '../axios/axios';
-
-const store = useStore();
-const user = computed(() => store.getters.getUser);
+import { onMounted} from 'vue';
 
 onMounted(async () => {
 });
 </script>
 
 <style scoped>
-.container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: bisque;
-    height: 10vh;
-    padding: 20px;
+.landing-page {
+    height: 100vh;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color : #e6ece5
 }
 
-.link {
-    margin: 10px;
+.logo-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
+
+.logo {
+  max-width: 400px;
+  height: auto;
+}
+
 </style>

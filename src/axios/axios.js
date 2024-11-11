@@ -2,13 +2,13 @@
 import axios from 'axios'
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/',  // Proverite da li je ovo tačan URL
+  baseURL: 'http://localhost:8080/',
   headers: {
     'Content-Type': 'application/json'
   }
 });
 
-// Dodajte interceptor za automatsko dodavanje tokena
+//interceptor za automatsko dodavanje tokena
 apiClient.interceptors.request.use(
   config => {
       const token = sessionStorage.getItem('token');

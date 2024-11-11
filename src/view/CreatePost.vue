@@ -1,4 +1,5 @@
 <template>
+  <div class="page-wrapper">
     <div class="create-post-container">
       <form @submit.prevent="handleSubmit" class="post-form">
         <h2>Create New Post</h2>
@@ -41,6 +42,7 @@
       </button>
       </form>
     </div>
+  </div>
   </template>
   
   <script setup>
@@ -99,6 +101,16 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     background-color: white;
   }
+
+  .page-wrapper {
+    background-image: url('@/assets/bunnyTile.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+    width: 100%;
+    padding: 1px;
+  }
   
   .post-form {
     display: flex;
@@ -136,8 +148,8 @@
   }
   
   .submit-btn {
-    background-color: #f18571;
-    color: white;
+    background-color: #ed9787;
+    color: #4A4A4A;
     padding: 1rem;
     border: none;
     border-radius: 4px;
@@ -147,7 +159,7 @@
   }
   
   .submit-btn:hover {
-    background-color: #ec5d43;
+    background-color: #f18571;
   }
   
   input:focus, textarea:focus {

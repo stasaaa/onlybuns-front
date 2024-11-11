@@ -1,19 +1,19 @@
 <template>
   <NavBar></NavBar>
   <router-view></router-view>
-  <MapComponent :center="[51.505, -0.09]" :zoom="13" />
 </template>
 
 <script>
 import '@coreui/coreui/dist/css/coreui.min.css'
 import NavBar from './components/NavBar.vue'
-import MapComponent from './components/MapComponent.vue';
+//import MapComponent from './components/MapComponent.vue';
+// <MapComponent :center="[51.505, -0.09]" :zoom="13" />
 
 export default {
   name: 'App',
   components: {
-    NavBar,
-    MapComponent
+    NavBar
+    //,MapComponent
   }
 }
 </script>
