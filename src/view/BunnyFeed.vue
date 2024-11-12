@@ -28,7 +28,7 @@
             <button class="interaction-btn" @click="togglePostOptions" v-if="post.userId === user.id">
               <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
               <div class="post-options" v-if="showPostOptions">
-                <button class="post-option" @click="editPost">Edit Post</button>
+                <button class="post-option" @click="editPost(post)">Edit Post</button>
                 <button class="post-option" @click="deletePost(post.id)">Delete Post</button>
               </div>
             </button>
@@ -73,8 +73,31 @@ const togglePostOptions = () => {
   showPostOptions.value = !showPostOptions.value;
 };
 
-const editPost = () => {
-  // Implement edit post functionality here
+const editPost = async (post) => {
+  try {
+    // Create a copy of the post object to avoid mutating the original
+    const editedPost = { ...post };
+
+    // Prompt the user for the updated post data
+    const updatedDescription = prompt('Enter the updated post description:', editedPost.description);
+    if (updatedDescription !== null) {
+      editedPost.description = updatedDescription;
+    }
+
+    // Send the PUT request to update the post
+    const response = await apiClient.put(`posts/${editedPost.id}`, editedPost);
+    console.log('Post updated successfully:', response.data);
+
+    // Update the post in the posts array
+    const index = posts.value.findIndex((p) => p.id === editedPost.id);
+    if (index !== -1) {
+      posts.value[index] = editedPost;
+    }
+
+    showPostOptions.value = false;
+  } catch (error) {
+    console.error('Error updating post:', error);
+  }
 };
 
 const deletePost = async (postId) => {
