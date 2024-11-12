@@ -193,7 +193,7 @@ const registerUser = () => {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  min-height: 88.9vh;
+  min-height: 100vh;
   width: 100%;
   margin: 0;
   padding: 0; 

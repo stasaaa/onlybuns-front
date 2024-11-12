@@ -46,7 +46,8 @@ const routes = [
   {
     path: '/registered-users',
     name: 'RegisteredUsers',
-    component: RegisteredUsers
+    component: RegisteredUsers,
+    meta: { requiresAuth: true },
   },
   {
     path: '/profile',
