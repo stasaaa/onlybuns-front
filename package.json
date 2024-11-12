@@ -22,12 +22,8 @@
     "vue": "^3.2.13",
     "vue-autosuggest": "^2.2.0",
     "vue-router": "^4.4.5",
-<<<<<<< HEAD
-    "vuex": "^4.1.0"
-=======
     "vue3-leaflet": "^1.0.50",
     "vuex": "^4.0.2"
->>>>>>> 4ba3719ec579264d3eed8f028ce270b509fa0e17
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
