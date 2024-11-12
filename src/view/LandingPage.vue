@@ -4,7 +4,9 @@
         <img src="@/assets/onlyBunsLogoCircle.png" alt="OnlyBuns Logo" class="logo">
       </div>
     </div>
-    <BunnyFeed></BunnyFeed>
+    <div>
+      <BunnyFeed></BunnyFeed>
+    </div>
 </template>
 
 <script setup>

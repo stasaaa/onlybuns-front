@@ -1,5 +1,6 @@
 <template>
   <div class="page-wrapper">
+    
     <div class="feed-container" 
           data-aos="fade-up"
           data-aos-duration="1000">
@@ -99,7 +100,7 @@ const alertUser = () => {
     setTimeout(() => {
       alertFadeOut.value = true;
       onAlertTransitionEnd();
-      errorMessage.value = 'To leave a like or comment please ';
+      errorMessage.value = 'To leave a like or comment, please ';
     }, 3000); // Fade out after 3 seconds
   }
 }
@@ -112,12 +113,7 @@ const onAlertTransitionEnd = () => {
 }
 
 const goToAccount = (username) => {
-  if (user.value.id !== -1) {
-    router.push({ name: 'UserProfile', query: { username } });
-  } else {
-    errorMessage.value = 'To access users profiles please ';
-    alertUser();
-  }
+  router.push({ name: 'UserProfile', query: { username } });
 };
 </script>
 
@@ -129,7 +125,8 @@ const goToAccount = (username) => {
               url('@/assets/bunnyTile.png');
   background-size: cover;
   background-position: center;
-  background-repeat: repeat;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
   min-height: 100vh;
   width: 100%;
   padding: 1rem;
