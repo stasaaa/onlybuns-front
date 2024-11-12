@@ -35,13 +35,9 @@ const login = () => {
     })
     .then((response) => {
         store.dispatch('setToken', response.data.token);
-        var token = response.data.token
         apiClient.get('authentication/userDetails', {
             params: {
                 email: email.value
-            },
-            headers: {
-                'Authorization': `Bearer ${token}`
             }
         })
         .then(userResponse => {

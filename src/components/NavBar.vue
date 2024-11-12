@@ -34,7 +34,7 @@
                         <CDropdown variant="nav-item">
                             <CDropdownToggle class="nav-item-custom">User</CDropdownToggle>
                             <CDropdownMenu>
-                                <CDropdownItem href="/profile">Profile</CDropdownItem>
+                                <CDropdownItem :href="'/profile?username=' + user.username">Profile</CDropdownItem>
                                 <CDropdownItem href="/chat">Chat</CDropdownItem>
                             </CDropdownMenu>
                         </CDropdown>

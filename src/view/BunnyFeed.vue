@@ -27,6 +27,7 @@
             </button>
           </div>
           <CCardBody>
+            <CNavLink v-on:click="goToAccount(post.username)" class="link">{{ post.username }}</CNavLink>
             <CCardText class="post-description">{{ post.description }}</CCardText>
             <div class="post-location" v-if="post.address">
               <font-awesome-icon :icon="['fas', 'location-dot']" />
@@ -42,14 +43,15 @@
       id="alertUser" 
       @transitionend="onAlertTransitionEnd"
     >
-      To like or leave a comment <CAlertLink href="/login">login</CAlertLink> or <CAlertLink href="/register">register</CAlertLink>.
+      {{ errorMessage }} <CAlertLink href="/login">login</CAlertLink> or <CAlertLink href="/register">register</CAlertLink>.
     </CAlert>
   </div>
 </template>
 
 <script setup>
 import apiClient from '@/axios/axios';
-import { CCard, CCardBody, CCardText, CCardImage, CAlert, CAlertLink } from '@coreui/vue';
+import router from '@/router/router';
+import { CCard, CCardBody, CCardText, CCardImage, CAlert, CAlertLink, CNavLink } from '@coreui/vue';
 import { onMounted, ref, computed } from 'vue';
 import { useStore } from 'vuex';
 
@@ -59,6 +61,7 @@ const alertUserBool = ref(false);
 const alertFadeOut = ref(false);
 
 const posts = ref([]);
+const errorMessage = ref('To leave a like or comment please ')
 
 onMounted(async () => {
     try {
@@ -76,6 +79,15 @@ onMounted(async () => {
             console.log(dateB - dateA);
             return dateB - dateA; // Sort in descending order (newest first)
         });
+        posts.value.forEach((post) => {
+          apiClient.get(`users/findUsername/${post.userId}`)
+          .then((response) => {
+            post.username = response.data
+          })
+          .catch((error) => {
+            console.log(error);
+          })
+        })
     } catch (error) {
         console.error('Error loading posts:', error);
     }
@@ -87,6 +99,7 @@ const alertUser = () => {
     setTimeout(() => {
       alertFadeOut.value = true;
       onAlertTransitionEnd();
+      errorMessage.value = 'To leave a like or comment please ';
     }, 3000); // Fade out after 3 seconds
   }
 }
@@ -97,6 +110,15 @@ const onAlertTransitionEnd = () => {
     alertUserBool.value = false; // Hide the alert after fade-out
   }
 }
+
+const goToAccount = (username) => {
+  if (user.value.id !== -1) {
+    router.push({ name: 'UserProfile', query: { username } });
+  } else {
+    errorMessage.value = 'To access users profiles please ';
+    alertUser();
+  }
+};
 </script>
 
 <style scoped>
@@ -107,7 +129,7 @@ const onAlertTransitionEnd = () => {
               url('@/assets/bunnyTile.png');
   background-size: cover;
   background-position: center;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   min-height: 100vh;
   width: 100%;
   padding: 1rem;
@@ -218,5 +240,9 @@ h2 {
   20%, 80% {
     opacity: 1;
   }
+}
+
+.link:hover {
+  cursor: pointer;
 }
 </style>
