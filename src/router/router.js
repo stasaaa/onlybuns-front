@@ -6,14 +6,15 @@ import CreatePost from '@/view/CreatePost.vue';
 import BunnyFeed from '@/view/BunnyFeed.vue';
 import RegisteredUsers from '@/view/RegisteredUsers.vue';
 import { createRouter, createWebHistory } from 'vue-router';
-import { useStore } from 'vuex';  // Import the useStore hook
+import { useStore } from 'vuex';
+import UserProfile from '@/view/UserProfile.vue';
 
 const routes = [
   {
     path: '/register',
     name: 'RegisterUser',
     component: RegisterUser,
-    meta: { requiresGuest: true },  // Add metadata for pages that require unauthenticated users
+    meta: { requiresGuest: true }
   },
   {
     path: '/',
@@ -24,7 +25,7 @@ const routes = [
     path: '/login',
     name: 'LogIn',
     component: LogIn,
-    meta: { requiresGuest: true },  // Allow only unauthenticated users
+    meta: { requiresGuest: true },
   },
   {
     path: '/activate',
@@ -35,7 +36,7 @@ const routes = [
     path: '/createPost',
     name: 'CreatePost',
     component: CreatePost,
-    meta: { requiresAuth: true },  // Add metadata for pages that require authentication
+    meta: { requiresAuth: true },
   },
   {
     path: '/feed',
@@ -47,6 +48,15 @@ const routes = [
     name: 'RegisteredUsers',
     component: RegisteredUsers
   },
+  {
+    path: '/profile',
+    name: 'UserProfile',
+    component: UserProfile
+  },
+  {
+    path: '/:catchAll(.*)',
+    redirect: '/'
+  }
 ];
 
 const router = createRouter({
@@ -57,17 +67,22 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const store = useStore();
 
-  const isAuthenticated = store.state.user.id !== -1;  // Check if the user is authenticated
+  const isAuthenticated = store.state.user.id !== -1;
 
-  // If the user is not authenticated and trying to access a protected route
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next('/login');  // Redirect to login page
-  } 
-  // If the user is authenticated and trying to access login/register pages, redirect them away
+    next('/login');
+  }
   else if (isAuthenticated && to.meta.requiresGuest) {
-    next('/');  // Redirect to the landing page (or another appropriate route)
+    next('/');
   } else {
-    next();  // Proceed as usual
+    if (to.name === 'UserProfile') {
+      if (!to.query.username || to.query.username === "") {
+        next('/');
+        return;
+      }
+    }
+
+    next();
   }
 });
 

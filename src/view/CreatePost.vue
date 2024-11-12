@@ -113,7 +113,6 @@ const createPost = () => {
   // Send the POST request with formData and appropriate headers
   apiClient.post('posts/create', formData, {
     headers: {
-      'Authorization': `Bearer ${store.state.token}`,
       'Content-Type': 'multipart/form-data',
     }
   })

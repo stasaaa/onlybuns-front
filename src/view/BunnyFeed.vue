@@ -1,5 +1,6 @@
 <template>
   <div class="page-wrapper">
+    
     <div class="feed-container" 
           data-aos="fade-up"
           data-aos-duration="1000">
@@ -34,6 +35,7 @@
             </button>
           </div>
           <CCardBody>
+            <CNavLink v-on:click="goToAccount(post.username)" class="link">{{ post.username }}</CNavLink>
             <CCardText class="post-description">{{ post.description }}</CCardText>
             <div class="post-location" v-if="post.address">
               <font-awesome-icon :icon="['fas', 'location-dot']" />
@@ -49,14 +51,15 @@
       id="alertUser" 
       @transitionend="onAlertTransitionEnd"
     >
-      To like or leave a comment <CAlertLink href="/login">login</CAlertLink> or <CAlertLink href="/register">register</CAlertLink>.
+      {{ errorMessage }} <CAlertLink href="/login">login</CAlertLink> or <CAlertLink href="/register">register</CAlertLink>.
     </CAlert>
   </div>
 </template>
 
 <script setup>
 import apiClient from '@/axios/axios';
-import { CCard, CCardBody, CCardText, CCardImage, CAlert, CAlertLink } from '@coreui/vue';
+import router from '@/router/router';
+import { CCard, CCardBody, CCardText, CCardImage, CAlert, CAlertLink, CNavLink } from '@coreui/vue';
 import { onMounted, ref, computed } from 'vue';
 import { useStore } from 'vuex';
 
@@ -66,6 +69,7 @@ const alertUserBool = ref(false);
 const alertFadeOut = ref(false);
 
 const posts = ref([]);
+const errorMessage = ref('To leave a like or comment please ')
 
 const showPostOptions = ref(false);
 
@@ -137,6 +141,15 @@ onMounted(async () => {
             console.log(dateB - dateA);
             return dateB - dateA; // Sort in descending order (newest first)
         });
+        posts.value.forEach((post) => {
+          apiClient.get(`users/findUsername/${post.userId}`)
+          .then((response) => {
+            post.username = response.data
+          })
+          .catch((error) => {
+            console.log(error);
+          })
+        })
     } catch (error) {
         console.error('Error loading posts:', error);
     }
@@ -148,6 +161,7 @@ const alertUser = () => {
     setTimeout(() => {
       alertFadeOut.value = true;
       onAlertTransitionEnd();
+      errorMessage.value = 'To leave a like or comment, please ';
     }, 3000); // Fade out after 3 seconds
   }
 }
@@ -158,6 +172,10 @@ const onAlertTransitionEnd = () => {
     alertUserBool.value = false; // Hide the alert after fade-out
   }
 }
+
+const goToAccount = (username) => {
+  router.push({ name: 'UserProfile', query: { username } });
+};
 </script>
 
 <style scoped>
@@ -309,5 +327,9 @@ h2 {
   20%, 80% {
     opacity: 1;
   }
+}
+
+.link:hover {
+  cursor: pointer;
 }
 </style>
