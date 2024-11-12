@@ -2,10 +2,31 @@
   <div class="registered-users">
     <h1>Registered Users</h1>
 
-    <!-- Search Field -->
-    <div class="search-field">
-      <input v-model="searchQuery" type="text" placeholder="Search by ('Name', 'Surname', 'Email')" />
-      <button @click="toggleEmailSort" class="sort-button">Sort by Email</button>
+    <!-- Search Fields Container -->
+    <div class="search-container">
+      <div class="search-field">
+        <span class="search-label">Search by name, surname and email:</span>
+        <input v-model="searchQuery" type="text" placeholder="('Name', 'Surname', 'Email')" class="search-input"/>
+      </div>
+
+      <!-- Post Count Range Filter -->
+      <div class="post-count-container">
+        <span class="post-count-label">Search by number of posts:</span>
+        <div class="post-count-inputs">
+          <input v-model.number="minPosts" type="number" placeholder="Min Posts" class="post-count-input"/>
+          <input v-model.number="maxPosts" type="number" placeholder="Max Posts" class="post-count-input"/>
+        </div>
+      </div>
+
+      <!-- Sort Buttons -->
+      <div class="sort-buttons">
+        <button @click="toggleEmailSort" class="sort-button">
+          Sort by Email
+        </button>
+        <button @click="toggleFollowingSort" class="sort-button">
+          Sort by Following
+        </button>
+      </div>
     </div>
 
     <!-- User Table -->
@@ -16,6 +37,8 @@
           <th>Surname</th>
           <th>Email</th>
           <th>Username</th>
+          <th>Number of posts</th>
+          <th>Number of following</th>
         </tr>
       </thead>
       <tbody>
@@ -25,6 +48,8 @@
           <td>{{ user.lastName }}</td>
           <td>{{ user.email }}</td>
           <td>{{ user.username }}</td>
+          <td>{{ user.numberOfPosts }}</td>
+          <td>{{ user.numberOfFollowing }}</td>
         </tr>
       </tbody>
     </table>
@@ -42,9 +67,13 @@ const currentUser = computed(() => store.getters.getUser);
 
 // Search query
 const searchQuery = ref('');
+const minPosts = ref(null);  // Minimum number of posts filter
+const maxPosts = ref(null);  // Maximum number of posts filter
 
 // Sorting state for email
 const sortOrder = ref('asc'); // Tracks current sort order for email sorting
+const followingSortOrder = ref('asc');   // Sort order for number of following
+const sortBy = ref('email');             // Track current sort field ('email' or 'following')
 
 // Load users on component mount
 onMounted(async () => {
@@ -67,7 +96,10 @@ const filteredUsers = computed(() => {
     const matchesSurname = surnameQuery ? user.lastName.toLowerCase().includes(surnameQuery) : true;
     const matchesEmail = emailQuery ? user.email.toLowerCase().includes(emailQuery) : true;
 
-    return matchesName && matchesSurname && matchesEmail;
+    const matchesMinPosts = minPosts.value !== null ? user.numberOfPosts >= minPosts.value : true;
+    const matchesMaxPosts = maxPosts.value !== null ? user.numberOfPosts <= maxPosts.value : true;
+
+    return matchesName && matchesSurname && matchesEmail && matchesMinPosts && matchesMaxPosts;
   });
 });
 
@@ -86,8 +118,16 @@ const sortedAndFilteredUsers = computed(() => {
 
 // Toggle sort order function
 const toggleEmailSort = () => {
+  sortBy.value = 'email';
   sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
 };
+
+// Toggle sort order function for following
+const toggleFollowingSort = () => {
+  sortBy.value = 'following';
+  followingSortOrder.value = followingSortOrder.value === 'asc' ? 'desc' : 'asc';
+};
+
 </script>
 
 <style scoped>
@@ -114,17 +154,42 @@ const toggleEmailSort = () => {
   font-size: 2.5rem;
 }
 
-.search-field {
-  margin-bottom: 2rem;
+.search-container {
   width: 100%;
-  max-width: 500px;
+  max-width: 800px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
 
-.search-field input {
-  width: 70%;
+.search-field, .post-count-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  width: 100%;
+}
+
+.search-label {
+  font-family: 'Delius Swash Caps', cursive;
+  color: #e53717;
+  font-size: 1.2rem;
+  white-space: nowrap;
+  min-width: 220px; /* Ensures alignment between both search sections */
+}
+
+.post-count-label {
+  font-family: 'Delius Swash Caps', cursive;
+  color: #e53717;
+  font-size: 1.2rem;
+  white-space: nowrap;
+  min-width: 220px; /* Ensures alignment between both search sections */
+}
+
+.search-input {
+  flex: 1;
+  max-width: 400px;
   padding: 0.8rem 1rem;
   border: 2px solid #c9d6c8;
   border-radius: 15px;
@@ -134,15 +199,33 @@ const toggleEmailSort = () => {
   color: #4a4a4a;
 }
 
-.search-field input:focus {
-  outline: none;
-  border-color: #fffddb; 
-  box-shadow: 0 0 0 3px rgba(236, 93, 67, 0.2);
+.post-count-inputs {
+  display: flex;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 400px;
+}
+
+.post-count-input {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border: 2px solid #c9d6c8;
+  border-radius: 15px;
+  background-color: #e6ece5;
+  font-family: 'Delius Swash Caps', cursive;
+  font-size: 1rem;
+  color: #4a4a4a;
+}
+
+.sort-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .sort-button {
-  width: 28%;
-  padding: 0.8rem 1rem;
+  padding: 0.8rem 1.5rem;
   border: 2px solid #fffddb;
   border-radius: 15px;
   background-color: #fffddb;
@@ -156,6 +239,7 @@ const toggleEmailSort = () => {
 .sort-button:hover {
   background-color: #ed9787;
   border: 2px solid #ed9787;
+  color: white;
   transform: translateY(-2px);
 }
 
@@ -166,6 +250,7 @@ const toggleEmailSort = () => {
   background-color: #e6ece5;
   border-radius: 20px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .user-table th,
@@ -184,5 +269,11 @@ const toggleEmailSort = () => {
 
 .user-table td {
   font-size: 1rem;
+}
+
+input:focus {
+  outline: none;
+  border-color: #fffddb; 
+  box-shadow: 0 0 0 3px rgba(236, 93, 67, 0.2);
 }
 </style>
