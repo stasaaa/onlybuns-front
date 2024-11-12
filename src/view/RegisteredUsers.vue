@@ -8,6 +8,7 @@
           <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>Surname</th>
             <th>Email</th>
             <th>Username</th>
           </tr>
@@ -15,7 +16,8 @@
         <tbody>
           <tr v-for="user in users" :key="user.id">
             <td>{{ user.id }}</td>
-            <td>{{ user.name }}</td>
+            <td>{{ user.firstName }}</td>
+            <td>{{ user.lastName }}</td>
             <td>{{ user.email }}</td>
             <td>{{ user.username }}</td>
           </tr>
@@ -26,15 +28,21 @@
   
   <script setup>
   import { ref, onMounted } from 'vue';
-  import { useStore } from 'vuex';
+  //import { useStore } from 'vuex';
+  import apiClient from '@/axios/axios';
   
-  const store = useStore();
+  //const store = useStore();
   const users = ref([]);
   
   // Učitavanje liste registrovanih korisnika kada se stranica učita
   onMounted(async () => {
-    await store.dispatch('fetchUsers');
-    users.value = store.getters.getUsers;
+    try {
+        const response = await apiClient.get('users');
+        users.value = response.data;
+        console.log('Users loaded:', users.value);
+    } catch (error) {
+        console.error('Error loading posts:', error);
+    }
   });
   </script>
   

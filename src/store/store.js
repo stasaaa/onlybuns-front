@@ -10,7 +10,7 @@ const store = createStore({
         username: '',
         password: '',
         passwordConfirm: '',
-        role: '',
+        userRole: '',
         address: {
           country: '',
           postalCode: '',

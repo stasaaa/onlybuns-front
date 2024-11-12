@@ -77,6 +77,7 @@ const editPost = async (post) => {
   try {
     // Create a copy of the post object to avoid mutating the original
     const editedPost = { ...post };
+    console.log(editedPost);
 
     // Prompt the user for the updated post data
     const updatedDescription = prompt('Enter the updated post description:', editedPost.description);
