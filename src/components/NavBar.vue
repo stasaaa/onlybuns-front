@@ -36,6 +36,9 @@
                             <CDropdownMenu>
                                 <CDropdownItem :href="'/profile?username=' + user.username">Profile</CDropdownItem>
                                 <CDropdownItem href="/chat">Chat</CDropdownItem>
+                                <!-- Only visible to Admin users -->
+                                 <CDropdownItem v-if="isAdmin" href="/registered-users">Registered Users</CDropdownItem>
+                                <!--<CDropdownItem href="/registered-users">Registered Users</CDropdownItem>-->
                             </CDropdownMenu>
                         </CDropdown>
 
@@ -82,6 +85,7 @@ const store = useStore();
 const user = computed(() => store.getters.getUser);
 
 const visible = ref(false);
+const isAdmin = computed(() => user.value.userRole === 'ADMIN');
 
 const logout = async () => {
     await store.dispatch('resetUser');

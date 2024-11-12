@@ -26,6 +26,13 @@
               <font-awesome-icon :icon="['fas', 'comment']" />
               <span>0</span>
             </button>
+            <button class="interaction-btn" @click="togglePostOptions" v-if="post.userId === user.id">
+              <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
+              <div class="post-options" v-if="showPostOptions">
+                <button class="post-option" @click="editPost(post)">Edit Post</button>
+                <button class="post-option" @click="deletePost(post.id)">Delete Post</button>
+              </div>
+            </button>
           </div>
           <CCardBody>
             <CNavLink v-on:click="goToAccount(post.username)" class="link">{{ post.username }}</CNavLink>
@@ -63,6 +70,60 @@ const alertFadeOut = ref(false);
 
 const posts = ref([]);
 const errorMessage = ref('To leave a like or comment please ')
+
+const showPostOptions = ref(false);
+
+const togglePostOptions = () => {
+  showPostOptions.value = !showPostOptions.value;
+};
+
+const editPost = async (post) => {
+  try {
+    // Create a copy of the post object to avoid mutating the original
+    const editedPost = { ...post };
+    console.log(editedPost);
+
+    // Prompt the user for the updated post data
+    const updatedDescription = prompt('Enter the updated post description:', editedPost.description);
+    if (updatedDescription !== null) {
+      editedPost.description = updatedDescription;
+    }
+
+    // Send the PUT request to update the post
+    const response = await apiClient.put(`posts/${editedPost.id}`, editedPost);
+    console.log('Post updated successfully:', response.data);
+
+    // Update the post in the posts array
+    const index = posts.value.findIndex((p) => p.id === editedPost.id);
+    if (index !== -1) {
+      posts.value[index] = editedPost;
+    }
+
+    showPostOptions.value = false;
+  } catch (error) {
+    console.error('Error updating post:', error);
+  }
+};
+
+const deletePost = async (postId) => {
+  try {
+    console.log('Deleting post with ID:', postId);
+    await apiClient.delete(`posts/${postId}`);
+    console.log('Post deleted successfully');
+
+    // Remove the deleted post from the posts array
+    posts.value = posts.value.filter((post) => post.id !== postId);
+    console.log('Posts array updated:', posts.value);
+
+    showPostOptions.value = false;
+  } catch (error) {
+    if (error.response && error.response.status === 404) {
+      console.log('Post not found, cannot delete');
+    } else {
+      console.error('Error deleting post:', error);
+    }
+  }
+};
 
 onMounted(async () => {
     try {
@@ -123,10 +184,9 @@ const goToAccount = (username) => {
 .page-wrapper {
   background: linear-gradient(to top, rgba(230, 236, 229, 0), rgba(230, 236, 229, 1)), 
               url('@/assets/bunnyTile.png');
-  background-size: cover;
+  background-size: 100% auto;
   background-position: center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-repeat: repeat;
   min-height: 100vh;
   width: 100%;
   padding: 1rem;
@@ -164,6 +224,8 @@ h2 {
   border-radius: 15px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 15px;
+  overflow: hidden;
 }
 
 .post-image {
@@ -228,6 +290,34 @@ h2 {
   transition: opacity 0.5s ease-in-out;
   -webkit-animation: fadeIn 3s linear forwards;
   animation: fadeIn 3s linear forwards;
+}
+
+.post-options {
+  position: absolute;
+  background-color: #fff;
+  border: 1px solid #c9d6c8;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0.5rem 0;
+  z-index: 100;
+  right: 1rem;
+  top: 3rem;
+}
+
+.post-option {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Delius Swash Caps', cursive;
+  color: #4A4A4A;
+}
+
+.post-option:hover {
+  background-color: #f5f5f5;
 }
 
 @keyframes fadeIn {
