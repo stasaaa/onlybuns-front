@@ -1,13 +1,15 @@
 <template>
+ <div class = "page-wrapper">
     <div class="container">
-        <h1>Account Activation</h1>
-        <font-awesome-icon :icon="['fas', 'circle-check']" bounce class="large-icon" style="color: #63E6BE;" v-if="activated && !error"/>
+        <h1>Account activated!</h1>
+        <font-awesome-icon :icon="['fas', 'circle-check']" bounce class="large-icon" style="color: #ec5d43;" v-if="activated && !error"/>
         <font-awesome-icon :icon="['fas', 'spinner']" class="large-icon" spin v-else-if="!activated && !error"/>
         <font-awesome-icon :icon="['fas', 'circle-exclamation']" class="large-icon" v-if="error"/>
         <p v-if="error" style="margin-top: 2vh;">
-            Error tring to get the activation code
+            Error trying to get the activation code
         </p>
     </div>
+</div>
 </template>
 
 <script setup>
@@ -42,19 +44,35 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Delius+Swash+Caps&display=swap');
+
 .container {
   display: flex;
   flex-direction: column;
   height: 80vh;
-  justify-content: center; /* Fixed typo from justify-self to justify-content */
-  align-items: center; /* Center icon vertically */
+  justify-content: center;
+  align-items: center;
+}
+
+.page-wrapper {
+  /*background-image: url('@/assets/bunnyTile.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;*/
+  background-color: #e6ece5;
+  min-height: 100vh;
+  width: 100%;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
 }
 
 .large-icon {
-    font-size: 5rem; /* Increase to make it bigger */
+    font-size: 5rem;
 }
 
-h1 {
+h1, p {
     margin-bottom: 10vh;
+    font-family: 'Delius Swash Caps', cursive;
 }
 </style>

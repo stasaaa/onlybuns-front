@@ -4,6 +4,7 @@ import RegisterUser from '@/view/RegisterUser.vue';
 import ActivateAccount from '@/view/ActivateAccount.vue';
 import CreatePost from '@/view/CreatePost.vue';
 import BunnyFeed from '@/view/BunnyFeed.vue';
+import RegisteredUsers from '@/view/RegisteredUsers.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';  // Import the useStore hook
 
@@ -40,6 +41,11 @@ const routes = [
     path: '/feed',
     name: 'BunnyFeed',
     component: BunnyFeed
+  },
+  {
+    path: '/registered-users',
+    name: 'RegisteredUsers',
+    component: RegisteredUsers
   },
 ];
 
