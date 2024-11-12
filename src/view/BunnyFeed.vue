@@ -18,9 +18,9 @@
             class="post-image" 
           />
           <div class="interaction-buttons">
-            <button class="interaction-btn" v-on:click="alertUser()">
+            <button class="interaction-btn" v-on:click="toggleLike(post)">
               <font-awesome-icon :icon="['fas', 'carrot']" class="carrot-icon" />
-              <span>0</span>
+              <span>{{ post.likes }}</span> <!-- Display likes count -->
             </button>
             <button class="interaction-btn" v-on:click="alertUser()">
               <font-awesome-icon :icon="['fas', 'comment']" />
@@ -77,8 +77,38 @@ const togglePostOptions = () => {
   showPostOptions.value = !showPostOptions.value;
 };
 
+// Function to handle toggling like status on a post
+const toggleLike = async (post) => {
+  if (user.value.id === -1) {
+    alertUserBool.value = true;
+    setTimeout(() => {
+      alertFadeOut.value = true;
+      onAlertTransitionEnd();
+      errorMessage.value = 'To leave a like or comment, please ';
+    }, 3000); // Fade out after 3 seconds
+    return;
+  }
+  try {
+    // Toggle the liked status locally
+    post.liked = !post.liked;
+
+    // Update likes count based on the new liked status
+    post.likes += post.liked ? 1 : -1;
+
+    // Call the backend to persist the like/unlike action
+    await apiClient.post(`/posts/${post.id}/toggle-like`, { liked: post.liked });
+  } catch (error) {
+    console.error('Error toggling like:', error);
+
+    // If there’s an error, revert the changes
+    post.liked = !post.liked;
+    post.likes += post.liked ? 1 : -1;
+  }
+};
+
 const editPost = async (post) => {
   try {
+    console.log('number of likes!!!!', post.likes);
     // Create a copy of the post object to avoid mutating the original
     const editedPost = { ...post };
     console.log(editedPost);
