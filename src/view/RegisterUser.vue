@@ -52,71 +52,37 @@
         </CCol>
   
         <CCol md="6">
-          <CFormFloating class="registration">
-            <CFormSelect v-model="user.address.country" aria-label="Select country" floatingLabel="Country">
-              <option disabled value="">Select a country</option>
-              <option v-for="country in countries" :key="country.cca3" :value="country.cca3">
-                {{ country.name.common }}
-              </option>
-            </CFormSelect>
-            <CFormInput
-              type="text"
-              v-model="user.address.postalCode"
-              id="postalCode"
-              placeholder="Postal Code"
-              floatingLabel="Postal Code"
-            />
-            <CFormInput
-              type="text"
-              v-model="user.address.city"
-              id="city"
-              placeholder="City"
-              floatingLabel="City"
-            />
-            <CFormInput
-              type="text"
-              v-model="user.address.street"
-              id="street"
-              placeholder="Enter street name"
-              floatingLabel="Street Name"
-            />
-            <CFormInput
-              type="text"
-              v-model="user.address.number"
-              id="number"
-              placeholder="Enter street number"
-              floatingLabel="Street Number"
-              />
-            </CFormFloating>
-            </CCol>
-        </CRow>
-  
-        <CRow>
-            <CCol md="12" class="text-center">
-                <CButton :disabled="isFormInvalid" class="submit-btn" @click="registerUser">
-                    Register
-                </CButton>
-            </CCol>
-        </CRow>
-  
-        <div class="validation-messages text-center">
-            <div v-if="!isPasswordValid" class="password-tooltip">
-                Password must have at least 8 characters
-            </div>
-  
-            <div v-if="!isPasswordMatch" class="password-tooltip">
-            Passwords do not match.
-            </div>
-        </div>
+          <MapComponent class="map" @map-clicked="handleMapData"/>
+        </CCol>
+      </CRow>
+
+      <CRow>
+          <CCol md="12" class="text-center">
+              <CButton :disabled="isFormInvalid" class="submit-btn" @click="registerUser">
+                  Register
+              </CButton>
+          </CCol>
+      </CRow>
+
+      <div class="validation-messages text-center">
+          <div v-if="!isPasswordValid" class="password-tooltip">
+              Password must have at least 8 characters
+          </div>
+
+          <div v-if="!isPasswordMatch" class="password-tooltip">
+          Passwords do not match.
+          </div>
+      </div>
     </div>
   </div>
 </template>
   
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { CFormFloating, CFormInput, CButton, CFormSelect, CRow, CCol } from '@coreui/vue';
+import { CFormFloating, CFormInput, CButton, CRow, CCol } from '@coreui/vue';
 import apiClient from '../axios/axios';
 import { useStore } from 'vuex';
+import MapComponent from '@/components/MapComponent.vue';
   
 const store = useStore();
 
@@ -132,11 +98,12 @@ const user = ref({
       postalCode: '',
       city: '',
       street: '',
-      number: ''
+      number: '',
+      latitude: 0,
+      longitude: 0
     }
 });
-  
-const countries = computed(() => store.getters.getCountries);
+
 store.dispatch('fetchCountries');
   
 const isPasswordMatch = computed(() => user.value.password === user.value.passwordConfirm);
@@ -175,6 +142,20 @@ const registerUser = () => {
         console.log(error);
         alert(error.response.data)
     });
+};
+
+const handleMapData = (data) => {
+  const { lat, lng, address } = data;
+
+  user.value.address = {
+    latitude: lat,
+    longitude: lng,
+    country: address.country || '',
+    city: address.city || '',
+    street: address.street || '',
+    postalCode: address.postalcode || 0,
+    number: address.street_number || 0
+  };
 };
 </script>
   
@@ -227,5 +208,10 @@ const registerUser = () => {
 .validation-messages {
     margin-top: 10px;
     text-align: center;
+}
+
+#mapContainer {
+  flex: 1;
+  width: 35vw;
 }
 </style>  

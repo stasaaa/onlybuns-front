@@ -8,6 +8,8 @@ import RegisteredUsers from '@/view/RegisteredUsers.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';
 import UserProfile from '@/view/UserProfile.vue';
+import TrendingPage from '@/view/TrendingPage.vue';
+import NearMe from '@/view/NearMe.vue';
 
 const routes = [
   {
@@ -55,8 +57,20 @@ const routes = [
     component: UserProfile
   },
   {
+    path: '/trends',
+    name: 'TrendingPage',
+    component: TrendingPage,
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/:catchAll(.*)',
     redirect: '/'
+  },
+  {
+    path: '/near-me',
+    name: 'NearMe',
+    component: NearMe,
+    meta: { requiresAuth: true },
   }
 ];
 
