@@ -27,7 +27,7 @@
             <!-- Analytics Dropdown -->
             <CDropdown variant="nav-item">
               <CDropdownToggle class="nav-item-custom">Analytics</CDropdownToggle>
-              <CDropdownMenu>
+              <CDropdownMenu> 
                 <CDropdownItem href="/trends">Trends</CDropdownItem>
                 <CDropdownItem v-if="isAdmin" href="/analytics">App Analytics</CDropdownItem>
               </CDropdownMenu>
@@ -38,7 +38,7 @@
               <CDropdownToggle class="nav-item-custom">User</CDropdownToggle>
               <CDropdownMenu>
                 <CDropdownItem :href="'/profile?username=' + user.username">Profile</CDropdownItem>
-                <CDropdownItem v-if="!isAdmin" href="/chat">Chat</CDropdownItem>
+                <CDropdownItem  href="/chat">Chat</CDropdownItem>
                 <CDropdownItem v-if="isAdmin" href="/registered-users">Registered Users</CDropdownItem>
               </CDropdownMenu>
             </CDropdown>

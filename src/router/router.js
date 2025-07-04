@@ -1,6 +1,7 @@
 import AppAnalytics from "@/components/AppAnalytics.vue";
 import ActivateAccount from "@/view/ActivateAccount.vue";
 import BunnyFeed from "@/view/BunnyFeed.vue";
+import ChatPage from "@/view/ChatPage.vue";
 import CreatePost from "@/view/CreatePost.vue";
 import LandingPage from "@/view/LandingPage.vue";
 import LogIn from "@/view/LogIn.vue";
@@ -64,6 +65,12 @@ const routes = [
   {
     path: "/:catchAll(.*)",
     redirect: "/",
+  },
+  {
+    path: "/chat",
+    name: "ChatPage",
+    component: ChatPage,
+    meta: { requiresAuth: true },
   },
 ];
 

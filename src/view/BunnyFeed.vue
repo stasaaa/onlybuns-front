@@ -59,8 +59,8 @@
 <script setup>
 import apiClient from '@/axios/axios';
 import router from '@/router/router';
-import { CCard, CCardBody, CCardText, CCardImage, CAlert, CAlertLink, CNavLink } from '@coreui/vue';
-import { onMounted, ref, computed } from 'vue';
+import { CAlert, CAlertLink, CCard, CCardBody, CCardImage, CCardText, CNavLink } from '@coreui/vue';
+import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'vuex';
 
 const store = useStore();
@@ -285,6 +285,8 @@ h2 {
   cursor: pointer;
   transition: all 0.2s ease;
 }
+
+
 
 .interaction-btn:hover {
   color: #ec5d43;
