@@ -2,6 +2,7 @@
 import AppAnalytics from "@/components/AppAnalytics.vue";
 import ActivateAccount from '@/view/ActivateAccount.vue';
 import BunnyFeed from '@/view/BunnyFeed.vue';
+import ChatPage from '@/view/ChatPage.vue';
 import CreatePost from '@/view/CreatePost.vue';
 import LandingPage from '@/view/LandingPage.vue';
 import LogIn from '@/view/LogIn.vue';
@@ -12,7 +13,6 @@ import TrendingPage from '@/view/TrendingPage.vue';
 import UserProfile from '@/view/UserProfile.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';
-
 const routes = [
   {
     path: "/register",
@@ -85,7 +85,12 @@ const routes = [
     path: "/:catchAll(.*)",
     redirect: "/",
   },
-
+  {
+    path: "/chat",
+    name: "ChatPage",
+    component: ChatPage,
+    meta: { requiresAuth: true },
+  },
 ];
 
 const router = createRouter({
