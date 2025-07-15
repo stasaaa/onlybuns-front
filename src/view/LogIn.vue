@@ -42,7 +42,7 @@ const login = () => {
         })
         .then(userResponse => {
             const userData = userResponse.data;
-            
+            console.log(userResponse.data);
             store.dispatch('setUser', userData);
             sessionStorage.setItem('user', JSON.stringify(userData));
 

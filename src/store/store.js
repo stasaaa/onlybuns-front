@@ -16,7 +16,9 @@ const store = createStore({
           postalCode: '',
           city: '',
           streetName: '',
-          streetNumber: ''
+          streetNumber: '',
+          latitude: 0,
+          longitude: 0
         }
       },
       token: sessionStorage.getItem('token') || '',  // Load token from sessionStorage if available
