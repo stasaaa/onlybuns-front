@@ -34,6 +34,20 @@
               </div>
             </button>
           </div>
+          <div v-if="user.id !== -1" class="comment-input">
+            <input
+              v-model="newComment[post.id]"
+              placeholder="Write a comment..."
+              class="comment-box"
+              type="text"
+            />
+            <button class="comment-btn" @click="addComment(post)">Add</button>
+          </div>
+          <div class="comments-list" v-if="post.comments && post.comments.length > 0">
+            <div v-for="(comment, index) in post.comments" :key="index" class="comment">
+              <strong>{{ comment.username }}:</strong> {{ comment.content }}
+            </div>
+          </div>
           <CCardBody>
             <CNavLink v-on:click="goToAccount(post.username)" class="link">{{ post.username }}</CNavLink>
             <CCardText class="post-description">{{ post.description }}</CCardText>
@@ -155,31 +169,115 @@ const deletePost = async (postId) => {
   }
 };
 
+// track new comment for each post
+const newComment = ref({});
+
+const addComment = async (post) => {
+  console.log('New comment object:', newComment.value);
+  console.log('New comment for post:', newComment.value[post.id]);
+
+  try {
+    const commentDto = {
+      userId: user.value.id,
+      postId: post.id,
+      content: newComment.value[post.id],
+    };
+    console.log('Sending comment:', commentDto);
+
+    // komentar na back
+    const response = await apiClient.post('/comments/new', commentDto);
+    console.log('Comment added successfully:', response.data);
+
+    // kreiranje kompletnog komentar objekta
+    const newCommentObj = {
+      id: response.data.id,
+      username: user.value.username,
+      content: response.data.content,
+      creationTime: response.data.creationTime || new Date().toISOString(),
+      userId: user.value.id
+    };
+
+    // dodavanje na vrhu liste (push dodaje na kraj)
+    post.comments = post.comments || [];
+    post.comments.unshift(newCommentObj);  // unshift dodaje na pocetak
+
+    // resetovanje inputa
+    newComment.value[post.id] = '';
+
+  } catch (error) {
+    console.error('Error adding comment:', error);
+
+    // rukovanje rate limit greskom
+    if (error.response && error.response.status === 429) {
+      const errorData = error.response.data;
+      alert(`Rate limit exceeded: ${errorData.message}\nRemaining comments: ${errorData.remainingComments}`);
+    } else {
+      alert('Error adding comment. Please try again.');
+    }
+  }
+};
+
 onMounted(async () => {
     try {
         const response = await apiClient.get('posts/all');
         posts.value = response.data;
+
         console.log('Posts loaded:', posts.value);
         console.log('User ID:', user.value.id);
+
+        // sortiranje po datumu
         posts.value.sort((a, b) => {
-            const dateA = new Date(a.creationTime); // Convert creationTime to a Date object
+            const dateA = new Date(a.creationTime);
             const dateB = new Date(b.creationTime);
             console.log(a.creationTime);
             console.log(b.creationTime);
             console.log("Datum A: ", dateA);
             console.log("Datum B: ", dateB);
             console.log(dateB - dateA);
-            return dateB - dateA; // Sort in descending order (newest first)
+            return dateB - dateA;
         });
-        posts.value.forEach((post) => {
-          apiClient.get(`users/findUsername/${post.userId}`)
-          .then((response) => {
-            post.username = response.data
-          })
-          .catch((error) => {
+
+        // za svaki post
+        for (const post of posts.value) {
+          // ucitavanje username-a za post
+          try {
+            const userResponse = await apiClient.get(`users/findUsername/${post.userId}`);
+            post.username = userResponse.data;
+          } catch (error) {
             console.log(error);
-          })
-        })
+            post.username = 'Unknown User';
+          }
+          
+          // ucitavanje komentara za post
+          try {
+            const commentsResponse = await apiClient.get(`comments/${post.id}`);
+            const loadedComments = commentsResponse.data;
+
+            // ucitavanje username-a za svaki komentar sekvencijalno
+            for (const comment of loadedComments) {
+              try {
+                const userRes = await apiClient.get(`users/findUsername/${comment.userId}`);
+                comment.username = userRes.data;
+              } catch (err) {
+                console.error(`Failed to load username for comment ${comment.id}`, err);
+                comment.username = 'Unknown User';
+              }
+            }
+
+            // sortiranje komentara po creationTime (najnoviji prvi)
+            post.comments = loadedComments.sort(
+              (a, b) => new Date(b.creationTime) - new Date(a.creationTime)
+            );
+          } catch (error) {
+            console.error(`Error loading comments for post ${post.id}:`, error);
+            post.comments = [];
+          }
+        }
+
+        // inicijalizacija praznih polja za unos komentara
+        posts.value.forEach((post) => {
+          newComment.value[post.id] = '';
+        });
     } catch (error) {
         console.error('Error loading posts:', error);
     }
@@ -264,6 +362,45 @@ h2 {
   object-fit: cover;
   display: block;
   border-bottom: 2px solid #c9d6c8;
+}
+
+.comment-input {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.comment-box {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #c9d6c8;
+  border-radius: 5px;
+}
+
+.comment-btn {
+  padding: 0.5rem 1rem;
+  background-color: #ec5d43;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: 'Delius Swash Caps', cursive;
+  transition: background-color 0.2s ease;
+}
+
+.comment-btn:hover {
+  background-color: #c94530;
+}
+
+.comments-list {
+  margin-top: 1rem;
+  padding: 0 1rem;
+  font-family: 'Delius Swash Caps', cursive;
+  color: #4A4A4A;
+}
+
+.comment {
+  margin-bottom: 0.5rem;
 }
 
 .interaction-buttons {
