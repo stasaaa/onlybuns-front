@@ -203,8 +203,17 @@ const addComment = async (post) => {
 
     // resetovanje inputa
     newComment.value[post.id] = '';
+
   } catch (error) {
     console.error('Error adding comment:', error);
+
+    // rukovanje rate limit greskom
+    if (error.response && error.response.status === 429) {
+      const errorData = error.response.data;
+      alert(`Rate limit exceeded: ${errorData.message}\nRemaining comments: ${errorData.remainingComments}`);
+    } else {
+      alert('Error adding comment. Please try again.');
+    }
   }
 };
 
