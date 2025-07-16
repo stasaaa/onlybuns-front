@@ -175,10 +175,6 @@ const newComment = ref({});
 const addComment = async (post) => {
   console.log('New comment object:', newComment.value);
   console.log('New comment for post:', newComment.value[post.id]);
-  //if (!newComment[post.id]) {
-   // console.log('Comment is empty');
-   // return;
-  //} // ignore empty comments
 
   try {
     const commentDto = {
@@ -188,51 +184,88 @@ const addComment = async (post) => {
     };
     console.log('Sending comment:', commentDto);
 
-    // comment to backend
+    // komentar na back
     const response = await apiClient.post('/comments/new', commentDto);
     console.log('Comment added successfully:', response.data);
-    // locally update comments
-    post.comments = post.comments || [];
-    post.comments.push({
+
+    // kreiranje kompletnog komentar objekta
+    const newCommentObj = {
+      id: response.data.id,
       username: user.value.username,
       content: response.data.content,
-    });
+      creationTime: response.data.creationTime || new Date().toISOString(),
+      userId: user.value.id
+    };
 
-    // blank placeholder
-    newComment[post.id] = '';
+    // dodavanje na vrhu liste (push dodaje na kraj)
+    post.comments = post.comments || [];
+    post.comments.unshift(newCommentObj);  // unshift dodaje na pocetak
+
+    // resetovanje inputa
+    newComment.value[post.id] = '';
   } catch (error) {
     console.error('Error adding comment:', error);
   }
 };
 
-
-
 onMounted(async () => {
     try {
         const response = await apiClient.get('posts/all');
         posts.value = response.data;
+
         console.log('Posts loaded:', posts.value);
         console.log('User ID:', user.value.id);
+
+        // sortiranje po datumu
         posts.value.sort((a, b) => {
-            const dateA = new Date(a.creationTime); // Convert creationTime to a Date object
+            const dateA = new Date(a.creationTime);
             const dateB = new Date(b.creationTime);
             console.log(a.creationTime);
             console.log(b.creationTime);
             console.log("Datum A: ", dateA);
             console.log("Datum B: ", dateB);
             console.log(dateB - dateA);
-            return dateB - dateA; // Sort in descending order (newest first)
+            return dateB - dateA;
         });
-        posts.value.forEach((post) => {
-          apiClient.get(`users/findUsername/${post.userId}`)
-          .then((response) => {
-            post.username = response.data
-          })
-          .catch((error) => {
+
+        // za svaki post
+        for (const post of posts.value) {
+          // ucitavanje username-a za post
+          try {
+            const userResponse = await apiClient.get(`users/findUsername/${post.userId}`);
+            post.username = userResponse.data;
+          } catch (error) {
             console.log(error);
-          })
-        })
-        // initialise new comment for each post
+            post.username = 'Unknown User';
+          }
+          
+          // ucitavanje komentara za post
+          try {
+            const commentsResponse = await apiClient.get(`comments/${post.id}`);
+            const loadedComments = commentsResponse.data;
+
+            // ucitavanje username-a za svaki komentar sekvencijalno
+            for (const comment of loadedComments) {
+              try {
+                const userRes = await apiClient.get(`users/findUsername/${comment.userId}`);
+                comment.username = userRes.data;
+              } catch (err) {
+                console.error(`Failed to load username for comment ${comment.id}`, err);
+                comment.username = 'Unknown User';
+              }
+            }
+
+            // sortiranje komentara po creationTime (najnoviji prvi)
+            post.comments = loadedComments.sort(
+              (a, b) => new Date(b.creationTime) - new Date(a.creationTime)
+            );
+          } catch (error) {
+            console.error(`Error loading comments for post ${post.id}:`, error);
+            post.comments = [];
+          }
+        }
+
+        // inicijalizacija praznih polja za unos komentara
         posts.value.forEach((post) => {
           newComment.value[post.id] = '';
         });
