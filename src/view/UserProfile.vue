@@ -25,12 +25,12 @@
 </template>
 
 <script setup>
+import bunnyImage from '@/assets/rabbit-marker.png';
 import apiClient from '@/axios/axios';
 import { CCardText, CNavItem, CSidebar, CSidebarBrand, CSidebarHeader, CSidebarNav } from '@coreui/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import bunnyImage from '@/assets/rabbit-marker.png'
 
 const store = useStore();
 const user = computed(() => store.getters.getUser);
