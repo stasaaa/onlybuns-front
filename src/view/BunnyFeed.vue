@@ -91,7 +91,6 @@ const togglePostOptions = () => {
   showPostOptions.value = !showPostOptions.value;
 };
 
-// Function to handle toggling like status on a post
 const toggleLike = async (post) => {
   if (user.value.id === -1) {
     alertUserBool.value = true;
@@ -99,26 +98,27 @@ const toggleLike = async (post) => {
       alertFadeOut.value = true;
       onAlertTransitionEnd();
       errorMessage.value = 'To leave a like or comment, please ';
-    }, 3000); // Fade out after 3 seconds
+    }, 3000);
     return;
   }
+
   try {
-    // Toggle the liked status locally
-    post.liked = !post.liked;
+    // Pozovi backend bez lokalne promene like statusa
+    const response = await apiClient.post(`/posts/${post.id}/toggle-like`, {
+      userId: user.value.id
+    });
 
-    // Update likes count based on the new liked status
-    post.likes += post.liked ? 1 : -1;
+    // Backend vraća { liked: true/false, likesCount: broj }
+    const { liked, likesCount } = response.data;
 
-    // Call the backend to persist the like/unlike action
-    await apiClient.post(`/posts/${post.id}/toggle-like`, { liked: post.liked });
+    post.liked = liked;
+    post.likes = likesCount;
+
   } catch (error) {
     console.error('Error toggling like:', error);
-
-    // If there’s an error, revert the changes
-    post.liked = !post.liked;
-    post.likes += post.liked ? 1 : -1;
   }
 };
+
 
 const editPost = async (post) => {
   try {

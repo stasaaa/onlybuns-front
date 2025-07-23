@@ -59,14 +59,12 @@
 
 <script setup>
 /* eslint-disable */
+import bunnyImage from '@/assets/rabbit-marker.png';
 import apiClient from '@/axios/axios';
-import EditPassword from '@/components/EditPassword.vue';
-import { CAvatar, CCard, CCardBody, CCardText, CCardImage, CNavLink, CModal, CModalBody, CModalFooter, CButton } from '@coreui/vue';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import Post from '@/components/Post.vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useStore } from 'vuex';
-import bunnyImage from '@/assets/rabbit-marker.png'
-import Post from '@/components/Post.vue';
 
 const store = useStore();
 const user = computed(() => store.getters.getUser);
