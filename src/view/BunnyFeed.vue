@@ -229,11 +229,6 @@ onMounted(async () => {
         posts.value.sort((a, b) => {
             const dateA = new Date(a.creationTime);
             const dateB = new Date(b.creationTime);
-            console.log(a.creationTime);
-            console.log(b.creationTime);
-            console.log("Datum A: ", dateA);
-            console.log("Datum B: ", dateB);
-            console.log(dateB - dateA);
             return dateB - dateA;
         });
 
