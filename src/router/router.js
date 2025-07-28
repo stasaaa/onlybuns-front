@@ -13,6 +13,7 @@ import TrendingPage from '@/view/TrendingPage.vue';
 import UserProfile from '@/view/UserProfile.vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';
+
 const routes = [
   {
     path: "/register",
@@ -52,6 +53,7 @@ const routes = [
     name: "RegisteredUsers",
     component: RegisteredUsers,
     meta: { requiresAuth: true, requiresAdmin: true },
+<<<<<<< HEAD
   },
   {
     path: "/profile",
@@ -91,6 +93,7 @@ const routes = [
     component: ChatPage,
     meta: { requiresAuth: true },
   },
+
 ];
 
 const router = createRouter({
