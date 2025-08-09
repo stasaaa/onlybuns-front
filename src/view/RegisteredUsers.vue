@@ -6,15 +6,30 @@
     <div class="search-container">
       <div class="search-field">
         <span class="search-label">Search by name, surname and email:</span>
-        <input v-model="searchQuery" type="text" placeholder="('Name', 'Surname', 'Email')" class="search-input"/>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="('Name', 'Surname', 'Email')"
+          class="search-input"
+        />
       </div>
 
       <!-- Post Count Range Filter -->
       <div class="post-count-container">
         <span class="post-count-label">Search by number of posts:</span>
         <div class="post-count-inputs">
-          <input v-model.number="minPosts" type="number" placeholder="Min Posts" class="post-count-input"/>
-          <input v-model.number="maxPosts" type="number" placeholder="Max Posts" class="post-count-input"/>
+          <input
+            v-model.number="minPosts"
+            type="number"
+            placeholder="Min Posts"
+            class="post-count-input"
+          />
+          <input
+            v-model.number="maxPosts"
+            type="number"
+            placeholder="Max Posts"
+            class="post-count-input"
+          />
         </div>
       </div>
 
@@ -22,15 +37,17 @@
       <div class="sort-buttons">
         <button @click="toggleEmailSort" class="sort-button">
           Sort by Email
+          <span v-if="sortBy === 'email'">({{ sortOrder }})</span>
         </button>
         <button @click="toggleFollowingSort" class="sort-button">
           Sort by Following
+          <span v-if="sortBy === 'following'">({{ followingSortOrder }})</span>
         </button>
       </div>
     </div>
 
     <!-- User Table -->
-    <table class="user-table">
+    <table class="user-table" v-if="displayedUsers.length > 0">
       <thead>
         <tr>
           <th>Name</th>
@@ -42,8 +59,7 @@
         </tr>
       </thead>
       <tbody>
-        <!-- Filtered and Sorted Users -->
-        <tr v-for="user in sortedAndFilteredUsers" :key="user.id">
+        <tr v-for="user in displayedUsers" :key="user.id">
           <td>{{ user.firstName }}</td>
           <td>{{ user.lastName }}</td>
           <td>{{ user.email }}</td>
@@ -53,88 +69,175 @@
         </tr>
       </tbody>
     </table>
+    <div v-else class="no-users">No users found.</div>
+
+    <!-- Pagination Controls -->
+    <div class="pagination-controls" v-if="totalPages > 1">
+      <button @click="prevPage" :disabled="page === 0">Previous</button>
+      <span>Page {{ page + 1 }} of {{ totalPages }}</span>
+      <button @click="nextPage" :disabled="page + 1 >= totalPages">Next</button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useStore } from 'vuex';
-import apiClient from '@/axios/axios';
+import apiClient from "@/axios/axios";
+import { computed, onMounted, ref, watch } from "vue";
+import { useStore } from "vuex";
 
-const users = ref([]);
+const users = ref({
+  content: [],
+  totalPages: 0,
+  totalElements: 0,
+  number: 0,
+});
+const page = ref(0);
+const size = 5;
+
 const store = useStore();
 const currentUser = computed(() => store.getters.getUser);
 
-// Search query
-const searchQuery = ref('');
-const minPosts = ref(null);  // Minimum number of posts filter
-const maxPosts = ref(null);  // Maximum number of posts filter
+const searchQuery = ref("");
+const minPosts = ref(null);
+const maxPosts = ref(null);
 
-// Sorting state for email
-const sortOrder = ref('asc'); // Tracks current sort order for email sorting
-const followingSortOrder = ref('asc');   // Sort order for number of following
-const sortBy = ref('email');             // Track current sort field ('email' or 'following')
+const sortOrder = ref("asc");
+const followingSortOrder = ref("asc");
+const sortBy = ref("email"); // default
 
-// Load users on component mount
-onMounted(async () => {
-  try {
-    console.log('Current User:', currentUser.value.id);
-    const response = await apiClient.get('users');
-    users.value = response.data.filter(user => user.id !== currentUser.value.id);
-    console.log('Users loaded:', users.value);
-  } catch (error) {
-    console.error('Error loading users:', error);
+// Računamo koliko ima ukupno stranica (za paginaciju)
+const totalPages = computed(() => users.value.totalPages || 0);
+
+// Izračunavanje korisnika za prikaz sa paginacijom
+const displayedUsers = computed(() => {
+  if (!users.value.content || users.value.content.length === 0) {
+    return [];
+  }
+
+  if (sortBy.value === "following") {
+    // Kad sortiramo po following - paginaciju radimo manuelno
+    const start = page.value * size;
+    const end = start + size;
+    return users.value.content.slice(start, end);
+  } else {
+    // Kad sortiramo po email - backend vraća već paginirane podatke
+    return users.value.content;
   }
 });
 
-// Computed property for filtered users
-const filteredUsers = computed(() => {
-  const [nameQuery, surnameQuery, emailQuery] = searchQuery.value.split(',').map(part => part.trim().toLowerCase());
-  
-  return users.value.filter(user => {
-    const matchesName = nameQuery ? user.firstName.toLowerCase().includes(nameQuery) : true;
-    const matchesSurname = surnameQuery ? user.lastName.toLowerCase().includes(surnameQuery) : true;
-    const matchesEmail = emailQuery ? user.email.toLowerCase().includes(emailQuery) : true;
+const loadUsers = async () => {
+  const params = new URLSearchParams();
 
-    const matchesMinPosts = minPosts.value !== null ? user.numberOfPosts >= minPosts.value : true;
-    const matchesMaxPosts = maxPosts.value !== null ? user.numberOfPosts <= maxPosts.value : true;
+  // Ako je sortiranje po following - učitaj sve korisnike (ili veliki broj) da bismo mogli da sort i paginiramo frontend
+  if (sortBy.value === "following") {
+    params.append("page", 0);
+    params.append("size", 1000); // Veća vrednost za sve korisnike, prilagodi po potrebi
+  } else {
+    // Za email sortiranje šalji stranicu i veličinu
+    params.append("page", page.value);
+    params.append("size", size);
+  }
 
-    return matchesName && matchesSurname && matchesEmail && matchesMinPosts && matchesMaxPosts;
-  });
-});
+  if (sortBy.value === "email") {
+    params.append("sort", "email");
+    params.append("direction", sortOrder.value);
+  }
 
-// Computed property for sorted and filtered users
-const sortedAndFilteredUsers = computed(() => {
-  // Sort the filtered users by email
-  const sortedUsers = [...filteredUsers.value].sort((a, b) => {
-    if (sortOrder.value === 'asc') {
-      return a.email.localeCompare(b.email);
+  if (searchQuery.value.trim() !== "") {
+    params.append("searchQuery", searchQuery.value.trim());
+  }
+  if (minPosts.value !== null && minPosts.value !== "") {
+    params.append("minPosts", minPosts.value);
+  }
+  if (maxPosts.value !== null && maxPosts.value !== "") {
+    params.append("maxPosts", maxPosts.value);
+  }
+
+  try {
+    const response = await apiClient.get(`/users?${params.toString()}`);
+    let loadedUsers = response.data.content.filter(
+      (user) => user.id !== currentUser.value.id
+    );
+
+    if (sortBy.value === "following") {
+      loadedUsers.sort((a, b) => {
+        const cmp = a.numberOfFollowing - b.numberOfFollowing;
+        return followingSortOrder.value === "asc" ? cmp : -cmp;
+      });
+
+      // Ručno postavljamo totalPages i broj stranice
+      users.value = {
+        content: loadedUsers,
+        totalPages: Math.ceil(loadedUsers.length / size),
+        totalElements: loadedUsers.length,
+        number: page.value,
+      };
     } else {
-      return b.email.localeCompare(a.email);
+      // Za email sortiranje backend već vraća paginaciju
+      users.value = {
+        ...response.data,
+        content: loadedUsers,
+      };
+      page.value = users.value.number;
     }
-  });
-  return sortedUsers;
+  } catch (error) {
+    console.error("Error loading users:", error);
+  }
+};
+
+onMounted(loadUsers);
+
+watch(
+  [searchQuery, minPosts, maxPosts, sortBy, sortOrder, followingSortOrder],
+  () => {
+    page.value = 0;
+    loadUsers();
+  }
+);
+
+watch(page, () => {
+  loadUsers();
 });
 
-// Toggle sort order function
 const toggleEmailSort = () => {
-  sortBy.value = 'email';
-  sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  if (sortBy.value !== "email") {
+    sortBy.value = "email";
+    sortOrder.value = "asc";
+  } else {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+  }
+  page.value = 0;
 };
 
-// Toggle sort order function for following
 const toggleFollowingSort = () => {
-  sortBy.value = 'following';
-  followingSortOrder.value = followingSortOrder.value === 'asc' ? 'desc' : 'asc';
+  if (sortBy.value !== "following") {
+    sortBy.value = "following";
+    followingSortOrder.value = "asc";
+  } else {
+    followingSortOrder.value =
+      followingSortOrder.value === "asc" ? "desc" : "asc";
+  }
+  page.value = 0;
 };
 
+const prevPage = () => {
+  if (page.value > 0) {
+    page.value--;
+  }
+};
+
+const nextPage = () => {
+  if (page.value + 1 < totalPages.value) {
+    page.value++;
+  }
+};
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Delius+Swash+Caps&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Delius+Swash+Caps&display=swap");
 
 .registered-users {
-  background-image: url('@/assets/bunnyTile.png');
+  background-image: url("@/assets/bunnyTile.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -147,7 +250,7 @@ const toggleFollowingSort = () => {
 }
 
 .registered-users h1 {
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   color: #ec5d43;
   text-align: center;
   margin-bottom: 2rem;
@@ -163,7 +266,8 @@ const toggleFollowingSort = () => {
   margin-bottom: 2rem;
 }
 
-.search-field, .post-count-container {
+.search-field,
+.post-count-container {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -172,19 +276,19 @@ const toggleFollowingSort = () => {
 }
 
 .search-label {
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   color: #e53717;
   font-size: 1.2rem;
   white-space: nowrap;
-  min-width: 220px; /* Ensures alignment between both search sections */
+  min-width: 220px;
 }
 
 .post-count-label {
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   color: #e53717;
   font-size: 1.2rem;
   white-space: nowrap;
-  min-width: 220px; /* Ensures alignment between both search sections */
+  min-width: 220px;
 }
 
 .search-input {
@@ -194,7 +298,7 @@ const toggleFollowingSort = () => {
   border: 2px solid #c9d6c8;
   border-radius: 15px;
   background-color: #e6ece5;
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   font-size: 1rem;
   color: #4a4a4a;
 }
@@ -212,7 +316,7 @@ const toggleFollowingSort = () => {
   border: 2px solid #c9d6c8;
   border-radius: 15px;
   background-color: #e6ece5;
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   font-size: 1rem;
   color: #4a4a4a;
 }
@@ -229,7 +333,7 @@ const toggleFollowingSort = () => {
   border: 2px solid #fffddb;
   border-radius: 15px;
   background-color: #fffddb;
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   font-size: 1rem;
   color: #4a4a4a;
   cursor: pointer;
@@ -258,7 +362,7 @@ const toggleFollowingSort = () => {
   padding: 1rem;
   border: 1px solid #c9d6c8;
   text-align: left;
-  font-family: 'Delius Swash Caps', cursive;
+  font-family: "Delius Swash Caps", cursive;
   color: #4a4a4a;
 }
 
@@ -273,7 +377,53 @@ const toggleFollowingSort = () => {
 
 input:focus {
   outline: none;
-  border-color: #fffddb; 
+  border-color: #fffddb;
   box-shadow: 0 0 0 3px rgba(236, 93, 67, 0.2);
+}
+
+.pagination-controls {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}
+
+.pagination-controls button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #ec5d43;
+  color: white;
+  font-family: "Delius Swash Caps", cursive;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.pagination-controls button:disabled {
+  background-color: #c9d6c8;
+  cursor: not-allowed;
+}
+
+.pagination-controls button:hover:not(:disabled) {
+  background-color: #c8442d;
+}
+
+.pagination-controls span {
+  font-family: "Delius Swash Caps", cursive;
+  color: #4a4a4a;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.no-users {
+  margin-top: 2rem;
+  font-family: "Delius Swash Caps", cursive;
+  color: #b66f61;
+  font-style: italic;
+  font-size: 1.2rem;
+  text-align: center;
 }
 </style>

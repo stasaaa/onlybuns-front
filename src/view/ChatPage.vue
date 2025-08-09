@@ -290,7 +290,6 @@
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
-
 export default {
   name: "ChatPage",
 
@@ -324,15 +323,16 @@ export default {
     currentUser() {
       return this.$store.getters.getUser;
     },
+    
     formattedMessages() {
-    return this.messages.map(message => {
-      const messageType = this.getMessageType(message);
-      return {
-        ...message,
-        messageType
-      };
-    });
-  },
+      return this.messages.map(message => {
+        const messageType = this.getMessageType(message);
+        return {
+          ...message,
+          messageType
+        };
+      });
+    },
 
     currentUserId() {
       return this.currentUser?.id || null;
@@ -343,11 +343,18 @@ export default {
     },
 
     availableUsers() {
+      console.log('Computing availableUsers, allUsers:', this.allUsers, 'type:', typeof this.allUsers);
+      if (!Array.isArray(this.allUsers)) {
+        console.warn('allUsers is not an array:', this.allUsers);
+        return [];
+      }
       return this.allUsers.filter((user) => user.id !== this.currentUserId);
     },
 
     nonGroupMembers() {
-      if (!this.selectedGroup) return [];
+      if (!this.selectedGroup || !Array.isArray(this.allUsers)) {
+        return [];
+      }
       const memberIds = this.selectedGroup.members?.map((m) => m.id) || [];
       return this.allUsers.filter(
         (user) => user.id !== this.currentUserId && !memberIds.includes(user.id)
@@ -358,17 +365,38 @@ export default {
       return this.newGroupName.trim() && this.selectedUserIds.length > 0;
     },
 
-    // Ova computed property proverava da li je trenutni korisnik admin grupe
     isCurrentUserAdmin() {
       if (!this.selectedGroup || !this.currentUserId) return false;
       
-      // Debug informacije
       console.log("Selected group:", this.selectedGroup);
       console.log("Current user ID:", this.currentUserId);
       console.log("Group admin:", this.selectedGroup.admin);
       
       return this.selectedGroup.admin?.id === this.currentUserId;
     },
+  },
+
+  watch: {
+    allUsers: {
+      immediate: true,
+      handler(newValue) {
+        console.log('allUsers changed:', newValue, 'is array:', Array.isArray(newValue));
+        if (newValue !== null && !Array.isArray(newValue)) {
+          console.error('allUsers should be an array, got:', typeof newValue, newValue);
+          this.allUsers = [];
+        }
+      }
+    },
+    
+    currentUserId: {
+      immediate: true,
+      handler(newValue) {
+        console.log('currentUserId changed:', newValue);
+        if (newValue && this.allUsers.length === 0) {
+          this.fetchAllUsers();
+        }
+      }
+    }
   },
 
   async mounted() {
@@ -380,9 +408,32 @@ export default {
   },
 
   methods: {
+    // Debug metoda
+    debugState() {
+      console.log('=== DEBUG STATE ===');
+      console.log('currentUser:', this.currentUser);
+      console.log('currentUserId:', this.currentUserId);
+      console.log('allUsers:', this.allUsers);
+      console.log('allUsers type:', typeof this.allUsers);
+      console.log('allUsers is array:', Array.isArray(this.allUsers));
+      console.log('availableUsers computed:', this.availableUsers);
+      console.log('showCreateGroupModal:', this.showCreateGroupModal);
+      console.log('==================');
+    },
+
     async loadInitialData() {
       try {
+        console.log('Loading initial data...');
+        console.log('Current user ID:', this.currentUserId);
+        
+        if (!this.currentUserId) {
+          console.warn('currentUserId is not available yet, retrying...');
+          setTimeout(() => this.loadInitialData(), 100);
+          return;
+        }
+        
         await Promise.all([this.fetchUserGroups(), this.fetchAllUsers()]);
+        console.log('Initial data loaded successfully');
       } catch (error) {
         console.error("Failed to load initial data:", error);
       }
@@ -403,13 +454,27 @@ export default {
 
     async fetchAllUsers() {
       try {
-        const response = await fetch(`${this.apiBaseUrl}/users`);
+        console.log('Fetching all users for currentUserId:', this.currentUserId);
+        const response = await fetch(`${this.apiBaseUrl}/users/all?currentUserId=${this.currentUserId}`);
+        
         if (response.ok) {
-          this.allUsers = await response.json();
+          const users = await response.json();
+          console.log('API response:', users);
+          
+          if (Array.isArray(users)) {
+            this.allUsers = users;
+            console.log('Loaded users:', users.length, 'users');
+          } else {
+            console.error('API did not return an array:', users);
+            this.allUsers = [];
+          }
+        } else {
+          console.error('API response not ok:', response.status, response.statusText);
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
       } catch (error) {
         console.error("Error fetching users:", error);
-        // fallback test data
+        // Fallback test data
         this.allUsers = [
           { id: 1, username: "ana" },
           { id: 2, username: "marko" },
@@ -442,20 +507,21 @@ export default {
       this.fetchMessages(group.id);
       this.connectToGroup(group.id);
     },
+    
     getMessageType(message) {
-    // System poruke
-    if (message.senderUsername === 'SYSTEM') {
-      return 'system';
-    }
-    
-    // Poruke trenutnog korisnika
-    if (message.senderUsername === this.currentUsername) {
-      return 'current-user';
-    }
-    
-    // Poruke drugih korisnika
-    return 'other-user';
-  },
+      // System poruke
+      if (message.senderUsername === 'SYSTEM') {
+        return 'system';
+      }
+      
+      // Poruke trenutnog korisnika
+      if (message.senderUsername === this.currentUsername) {
+        return 'current-user';
+      }
+      
+      // Poruke drugih korisnika
+      return 'other-user';
+    },
 
     connectToGroup(groupId) {
       this.disconnectWebSocket();
@@ -600,7 +666,6 @@ export default {
       if (!this.selectedGroup || this.selectedUsersToAdd.length === 0) return;
 
       try {
-        // Dodaj sve selektovane korisnike jedan po jedan
         for (const userId of this.selectedUsersToAdd) {
           await this.addMember(userId);
         }
@@ -640,8 +705,9 @@ export default {
 
     openCreateGroupModal() {
       console.log("Opening create group modal...");
+      this.debugState(); // Debug trenutno stanje
       this.showCreateGroupModal = true;
-      console.log("showCreateGroupModal:", this.showCreateGroupModal);
+      console.log("showCreateGroupModal after setting:", this.showCreateGroupModal);
     },
 
     closeCreateGroupModal() {
@@ -690,6 +756,7 @@ export default {
   },
 };
 </script>
+
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Delius+Swash+Caps&display=swap');
