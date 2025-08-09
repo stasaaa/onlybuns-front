@@ -52,7 +52,8 @@
         <div class="chat-header">
           <div class="chat-info">
             <h2>{{ selectedGroup.name }}</h2>
-            <p>{{ selectedGroup.memberCount || 0 }} members</p>
+           <p>{{ selectedGroup.members?.length || 0 }} members</p>
+
           </div>
           <div class="chat-actions">
             <button 
@@ -498,6 +499,32 @@ export default {
       }
     },
 
+    async fetchGroupMembers(groupId) {
+  try {
+    const response = await fetch(`${this.apiBaseUrl}/group-chat/${groupId}/members`);
+    if (response.ok) {
+      const members = await response.json();
+      // Napravi shallow copy selectedGroup i dopuni members
+      this.selectedGroup = {
+        ...this.selectedGroup,
+        members,
+      };
+    } else {
+      console.error("Failed to fetch group members");
+      this.selectedGroup = {
+        ...this.selectedGroup,
+        members: [],
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching group members:", error);
+    this.selectedGroup = {
+      ...this.selectedGroup,
+      members: [],
+    };
+  }
+}
+,
     selectGroup(group) {
       if (this.selectedGroup?.id === group.id) return;
 
@@ -506,6 +533,8 @@ export default {
       this.messages = [];
       this.fetchMessages(group.id);
       this.connectToGroup(group.id);
+
+  this.fetchGroupMembers(group.id);
     },
     
     getMessageType(message) {
@@ -678,30 +707,35 @@ export default {
       }
     },
 
-    async removeMember(userId) {
-      if (!this.selectedGroup) return;
+async removeMember(userId) {
+  if (!this.selectedGroup) return;
 
-      try {
-        const response = await fetch(
-          `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/remove-member?userId=${userId}&adminUsername=${this.currentUsername}`,
-          { method: "PUT" }
-        );
+  try {
+    const response = await fetch(
+      `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/remove-member?userId=${userId}&adminUsername=${this.currentUsername}`,
+      { method: "PUT" }
+    );
 
-        if (response.ok) {
-          await this.fetchUserGroups();
-          const updatedGroup = this.userGroups.find(
-            (g) => g.id === this.selectedGroup.id
-          );
-          if (updatedGroup) this.selectedGroup = updatedGroup;
-          console.log("Member removed successfully");
-        } else {
-          throw new Error("Failed to remove member");
-        }
-      } catch (error) {
-        console.error("Error removing member:", error);
-        alert("Failed to remove member. Please try again.");
+    if (response.ok) {
+      await this.fetchUserGroups();
+      const updatedGroup = this.userGroups.find(
+        (g) => g.id === this.selectedGroup.id
+      );
+      if (updatedGroup) {
+        this.selectedGroup = updatedGroup;
+        // Dodaj ovo:
+        await this.fetchGroupMembers(updatedGroup.id);
       }
-    },
+      console.log("Member removed successfully");
+    } else {
+      throw new Error("Failed to remove member");
+    }
+  } catch (error) {
+    console.error("Error removing member:", error);
+    alert("Failed to remove member. Please try again.");
+  }
+},
+
 
     openCreateGroupModal() {
       console.log("Opening create group modal...");
