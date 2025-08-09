@@ -498,22 +498,18 @@ export default {
         console.error("Error fetching messages:", error);
       }
     },
-async fetchMessagesForUser(groupId, userId) {
+
+    async fetchMessagesForUser(groupId, userId) {
   try {
-    const response = await fetch(
-      `${this.apiBaseUrl}/group-chat/${groupId}/messages/user/${userId}`
-    );
+    const response = await fetch(`${this.apiBaseUrl}/group-chat/${groupId}/messages/user/${userId}`);
     if (response.ok) {
       this.messages = await response.json();
       this.$nextTick(() => this.scrollToBottom());
-    } else {
-      console.error("Failed to fetch messages for user:", response.status);
     }
   } catch (error) {
     console.error("Error fetching messages for user:", error);
   }
 },
-
 
     async fetchGroupMembers(groupId) {
   try {
