@@ -498,6 +498,22 @@ export default {
         console.error("Error fetching messages:", error);
       }
     },
+async fetchMessagesForUser(groupId, userId) {
+  try {
+    const response = await fetch(
+      `${this.apiBaseUrl}/group-chat/${groupId}/messages/user/${userId}`
+    );
+    if (response.ok) {
+      this.messages = await response.json();
+      this.$nextTick(() => this.scrollToBottom());
+    } else {
+      console.error("Failed to fetch messages for user:", response.status);
+    }
+  } catch (error) {
+    console.error("Error fetching messages for user:", error);
+  }
+},
+
 
     async fetchGroupMembers(groupId) {
   try {
@@ -526,16 +542,22 @@ export default {
 }
 ,
     selectGroup(group) {
-      if (this.selectedGroup?.id === group.id) return;
+  if (this.selectedGroup?.id === group.id) return;
 
-      console.log("Selecting group:", group);
-      this.selectedGroup = group;
-      this.messages = [];
-      this.fetchMessages(group.id);
-      this.connectToGroup(group.id);
+  console.log("Selecting group:", group);
+  this.selectedGroup = group;
+  this.messages = [];
 
+  if (!this.currentUserId) {
+    console.error("currentUserId is undefined, cannot fetch messages for user");
+    return;
+  }
+
+  this.fetchMessagesForUser(group.id, this.currentUserId);
+  this.connectToGroup(group.id);
   this.fetchGroupMembers(group.id);
-    },
+},
+
     
     getMessageType(message) {
       // System poruke
@@ -653,6 +675,7 @@ export default {
             this.messages = [];
             await this.fetchMessages(createdGroup.id);
             this.connectToGroup(createdGroup.id);
+            await this.fetchGroupMembers(createdGroup.id); 
           }
 
           this.closeCreateGroupModal();
@@ -666,30 +689,33 @@ export default {
       }
     },
 
-    async addMember(userId) {
-      if (!this.selectedGroup) return;
+async addMember(userId) {
+  if (!this.selectedGroup) return;
 
-      try {
-        const response = await fetch(
-          `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/add-member?userId=${userId}&adminUsername=${this.currentUsername}`,
-          { method: "PUT" }
-        );
+  try {
+    const response = await fetch(
+      `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/add-member?userId=${userId}&adminUsername=${this.currentUsername}`,
+      { method: "PUT" }
+    );
 
-        if (response.ok) {
-          await this.fetchUserGroups();
-          const updatedGroup = this.userGroups.find(
-            (g) => g.id === this.selectedGroup.id
-          );
-          if (updatedGroup) this.selectedGroup = updatedGroup;
-          console.log("Member added successfully");
-        } else {
-          throw new Error("Failed to add member");
-        }
-      } catch (error) {
-        console.error("Error adding member:", error);
-        alert("Failed to add member. Please try again.");
+    if (response.ok) {
+      await this.fetchUserGroups();
+      const updatedGroup = this.userGroups.find(
+        (g) => g.id === this.selectedGroup.id
+      );
+      if (updatedGroup) {
+        this.selectedGroup = updatedGroup;
+        await this.fetchGroupMembers(updatedGroup.id); 
       }
-    },
+      console.log("Member added successfully");
+    } else {
+      throw new Error("Failed to add member");
+    }
+  } catch (error) {
+    console.error("Error adding member:", error);
+    alert("Failed to add member. Please try again.");
+  }
+},
 
     async addSelectedMembers() {
       if (!this.selectedGroup || this.selectedUsersToAdd.length === 0) return;
