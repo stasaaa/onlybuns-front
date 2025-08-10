@@ -85,12 +85,7 @@ import apiClient from "@/axios/axios";
 import { computed, onMounted, ref, watch } from "vue";
 import { useStore } from "vuex";
 
-const users = ref({
-  content: [],
-  totalPages: 0,
-  totalElements: 0,
-  number: 0,
-});
+const users = ref([]);
 const page = ref(0);
 const size = 5;
 
@@ -101,47 +96,42 @@ const searchQuery = ref("");
 const minPosts = ref(null);
 const maxPosts = ref(null);
 
-const sortOrder = ref("asc");
-const followingSortOrder = ref("asc");
-const sortBy = ref("email"); // default
+const sortBy = ref("email"); // default: email or following
+const sortOrder = ref("asc"); // for email
+const followingSortOrder = ref("asc"); // for following
 
-// Računamo koliko ima ukupno stranica (za paginaciju)
-const totalPages = computed(() => users.value.totalPages || 0);
+const totalPages = computed(() => Math.ceil(users.value.length / size));
 
-// Izračunavanje korisnika za prikaz sa paginacijom
 const displayedUsers = computed(() => {
-  if (!users.value.content || users.value.content.length === 0) {
-    return [];
+  const sortedUsers = [...users.value];
+
+  if (sortBy.value === "email") {
+    sortedUsers.sort((a, b) => {
+      if (!a.email) return 1;
+      if (!b.email) return -1;
+      if (sortOrder.value === "asc") {
+        return a.email.localeCompare(b.email);
+      } else {
+        return b.email.localeCompare(a.email);
+      }
+    });
+  } else if (sortBy.value === "following") {
+    sortedUsers.sort((a, b) => {
+      const cmp = a.numberOfFollowing - b.numberOfFollowing;
+      return followingSortOrder.value === "asc" ? cmp : -cmp;
+    });
   }
 
-  if (sortBy.value === "following") {
-    // Kad sortiramo po following - paginaciju radimo manuelno
-    const start = page.value * size;
-    const end = start + size;
-    return users.value.content.slice(start, end);
-  } else {
-    // Kad sortiramo po email - backend vraća već paginirane podatke
-    return users.value.content;
-  }
+  const start = page.value * size;
+  return sortedUsers.slice(start, start + size);
 });
 
 const loadUsers = async () => {
   const params = new URLSearchParams();
 
-  // Ako je sortiranje po following - učitaj sve korisnike (ili veliki broj) da bismo mogli da sort i paginiramo frontend
-  if (sortBy.value === "following") {
-    params.append("page", 0);
-    params.append("size", 1000); // Veća vrednost za sve korisnike, prilagodi po potrebi
-  } else {
-    // Za email sortiranje šalji stranicu i veličinu
-    params.append("page", page.value);
-    params.append("size", size);
-  }
-
-  if (sortBy.value === "email") {
-    params.append("sort", "email");
-    params.append("direction", sortOrder.value);
-  }
+  // Uvek tražimo veliki broj da bismo radili paginaciju frontend
+  params.append("page", 0);
+  params.append("size", 1000);
 
   if (searchQuery.value.trim() !== "") {
     params.append("searchQuery", searchQuery.value.trim());
@@ -155,31 +145,10 @@ const loadUsers = async () => {
 
   try {
     const response = await apiClient.get(`/users?${params.toString()}`);
-    let loadedUsers = response.data.content.filter(
+    users.value = response.data.content.filter(
       (user) => user.id !== currentUser.value.id
     );
-
-    if (sortBy.value === "following") {
-      loadedUsers.sort((a, b) => {
-        const cmp = a.numberOfFollowing - b.numberOfFollowing;
-        return followingSortOrder.value === "asc" ? cmp : -cmp;
-      });
-
-      // Ručno postavljamo totalPages i broj stranice
-      users.value = {
-        content: loadedUsers,
-        totalPages: Math.ceil(loadedUsers.length / size),
-        totalElements: loadedUsers.length,
-        number: page.value,
-      };
-    } else {
-      // Za email sortiranje backend već vraća paginaciju
-      users.value = {
-        ...response.data,
-        content: loadedUsers,
-      };
-      page.value = users.value.number;
-    }
+    page.value = 0; // resetuj stranicu na novu pretragu/sortiranje
   } catch (error) {
     console.error("Error loading users:", error);
   }
@@ -188,16 +157,18 @@ const loadUsers = async () => {
 onMounted(loadUsers);
 
 watch(
-  [searchQuery, minPosts, maxPosts, sortBy, sortOrder, followingSortOrder],
+  [searchQuery, minPosts, maxPosts],
   () => {
-    page.value = 0;
     loadUsers();
   }
 );
 
-watch(page, () => {
-  loadUsers();
-});
+watch(
+  [sortBy, sortOrder, followingSortOrder],
+  () => {
+    page.value = 0; // resetuj page kad se menja sortiranje
+  }
+);
 
 const toggleEmailSort = () => {
   if (sortBy.value !== "email") {
@@ -232,6 +203,8 @@ const nextPage = () => {
   }
 };
 </script>
+
+
 
 <style scoped>
 @import url("https://fonts.googleapis.com/css2?family=Delius+Swash+Caps&display=swap");
