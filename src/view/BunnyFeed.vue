@@ -229,8 +229,6 @@ h2 {
   transition: all 0.2s ease;
 }
 
-
-
 .interaction-btn:hover {
   color: #ec5d43;
 }
