@@ -53,7 +53,7 @@ const routes = [
     name: "RegisteredUsers",
     component: RegisteredUsers,
     meta: { requiresAuth: true, requiresAdmin: true },
-<<<<<<< HEAD
+
   },
   {
     path: "/profile",
