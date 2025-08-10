@@ -1,303 +1,114 @@
 <template>
-  <div class="page-wrapper">
-    
-    <div class="feed-container" 
-          data-aos="fade-up"
-          data-aos-duration="1000">
-      <h2>Bunny Feed</h2>
-      <div class="posts-grid">
-        <CCard 
-          v-for="post in posts" 
-          :key="post.id" 
-          class="post-card"
-        >
-          <CCardImage 
-            v-if="post.image" 
-            orientation="top" 
-            :src="'data:image/jpeg;base64,' + post.image"
-            class="post-image" 
-          />
-          <div class="interaction-buttons">
-            <button class="interaction-btn" v-on:click="toggleLike(post)">
-              <font-awesome-icon :icon="['fas', 'carrot']" class="carrot-icon" />
-              <span>{{ post.likes }}</span> <!-- Display likes count -->
-            </button>
-            <button class="interaction-btn" v-on:click="alertUser()">
-              <font-awesome-icon :icon="['fas', 'comment']" />
-              <span>0</span>
-            </button>
-            <button class="interaction-btn" @click="togglePostOptions" v-if="post.userId === user.id">
-              <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
-              <div class="post-options" v-if="showPostOptions">
-                <button class="post-option" @click="editPost(post)">Edit Post</button>
-                <button class="post-option" @click="deletePost(post.id)">Delete Post</button>
-              </div>
-            </button>
-          </div>
-          <div v-if="user.id !== -1" class="comment-input">
-            <input
-              v-model="newComment[post.id]"
-              placeholder="Write a comment..."
-              class="comment-box"
-              type="text"
-            />
-            <button class="comment-btn" @click="addComment(post)">Add</button>
-          </div>
-          <div class="comments-list" v-if="post.comments && post.comments.length > 0">
-            <div v-for="(comment, index) in post.comments" :key="index" class="comment">
-              <strong>{{ comment.username }}:</strong> {{ comment.content }}
-            </div>
-          </div>
-          <CCardBody>
-            <CNavLink v-on:click="goToAccount(post.username)" class="link">{{ post.username }}</CNavLink>
-            <CCardText class="post-description">{{ post.description }}</CCardText>
-            <div class="post-location" v-if="post.address">
-              <font-awesome-icon :icon="['fas', 'location-dot']" />
-              {{ post.address.city }}, {{ post.address.street }}
-            </div>
-          </CCardBody>
-        </CCard>
-      </div>
+  <div class="feed-container">
+    <h2>Bunny Feed</h2>
+    <div class="posts-list">
+      <PostComponent
+        v-for="post in posts"
+        :key="post.id"
+        :post="post"
+        :userId="user.id"
+        @post-updated="refreshPosts"
+        @post-edited="updatePost"
+        @post-deleted="removePost"
+        @alert-user="showLoginAlert"
+      />
     </div>
-    <CAlert 
+
+    <CAlert
       v-if="alertUserBool"
-      color="light" 
-      id="alertUser" 
+      color="light"
+      id="alertUser"
       @transitionend="onAlertTransitionEnd"
     >
-      {{ errorMessage }} <CAlertLink href="/login">login</CAlertLink> or <CAlertLink href="/register">register</CAlertLink>.
+      {{ errorMessage }}
+      <CAlertLink href="/login">login</CAlertLink> or
+      <CAlertLink href="/register">register</CAlertLink>.
     </CAlert>
   </div>
 </template>
 
 <script setup>
 import apiClient from '@/axios/axios';
-import router from '@/router/router';
-import { CAlert, CAlertLink, CCard, CCardBody, CCardImage, CCardText, CNavLink } from '@coreui/vue';
+import PostComponent from '@/components/Post.vue';
+import { CAlert, CAlertLink } from '@coreui/vue';
 import { computed, onMounted, ref } from 'vue';
 import { useStore } from 'vuex';
 
 const store = useStore();
 const user = computed(() => store.getters.getUser);
-const alertUserBool = ref(false);
-const alertFadeOut = ref(false);
 
 const posts = ref([]);
-const errorMessage = ref('To leave a like or comment please ')
+const alertUserBool = ref(false);
+const alertFadeOut = ref(false);
+const errorMessage = ref('To leave a like or comment, please ');
 
-const showPostOptions = ref(false);
-
-const togglePostOptions = () => {
-  showPostOptions.value = !showPostOptions.value;
-};
-
-const toggleLike = async (post) => {
-  if (user.value.id === -1) {
-    alertUserBool.value = true;
-    setTimeout(() => {
-      alertFadeOut.value = true;
-      onAlertTransitionEnd();
-      errorMessage.value = 'To leave a like or comment, please ';
-    }, 3000);
-    return;
-  }
-
+const loadPosts = async () => {
   try {
-    // Pozovi backend bez lokalne promene like statusa
-    const response = await apiClient.post(`/posts/${post.id}/toggle-like`, {
-      userId: user.value.id
-    });
+    const response = await apiClient.get('posts/all');
+    posts.value = response.data;
 
-    // Backend vraća { liked: true/false, likesCount: broj }
-    const { liked, likesCount } = response.data;
+    posts.value.sort((a, b) => new Date(b.creationTime) - new Date(a.creationTime));
 
-    post.liked = liked;
-    post.likes = likesCount;
+    // Load usernames and comments for posts
+    for (const post of posts.value) {
+      try {
+        const userRes = await apiClient.get(`users/findUsername/${post.userId}`);
+        post.username = userRes.data;
+      } catch {
+        post.username = 'Unknown User';
+      }
 
-  } catch (error) {
-    console.error('Error toggling like:', error);
-  }
-};
-
-
-const editPost = async (post) => {
-  try {
-    console.log('number of likes!!!!', post.likes);
-    // Create a copy of the post object to avoid mutating the original
-    const editedPost = { ...post };
-    console.log(editedPost);
-
-    // Prompt the user for the updated post data
-    const updatedDescription = prompt('Enter the updated post description:', editedPost.description);
-    if (updatedDescription !== null) {
-      editedPost.description = updatedDescription;
-    }
-
-    // Send the PUT request to update the post
-    const response = await apiClient.put(`posts/${editedPost.id}`, editedPost);
-    console.log('Post updated successfully:', response.data);
-
-    // Update the post in the posts array
-    const index = posts.value.findIndex((p) => p.id === editedPost.id);
-    if (index !== -1) {
-      posts.value[index] = editedPost;
-    }
-
-    showPostOptions.value = false;
-  } catch (error) {
-    console.error('Error updating post:', error);
-  }
-};
-
-const deletePost = async (postId) => {
-  try {
-    console.log('Deleting post with ID:', postId);
-    await apiClient.delete(`posts/${postId}`);
-    console.log('Post deleted successfully');
-
-    // Remove the deleted post from the posts array
-    posts.value = posts.value.filter((post) => post.id !== postId);
-    console.log('Posts array updated:', posts.value);
-
-    showPostOptions.value = false;
-  } catch (error) {
-    if (error.response && error.response.status === 404) {
-      console.log('Post not found, cannot delete');
-    } else {
-      console.error('Error deleting post:', error);
-    }
-  }
-};
-
-// track new comment for each post
-const newComment = ref({});
-
-const addComment = async (post) => {
-  console.log('New comment object:', newComment.value);
-  console.log('New comment for post:', newComment.value[post.id]);
-
-  try {
-    const commentDto = {
-      userId: user.value.id,
-      postId: post.id,
-      content: newComment.value[post.id],
-    };
-    console.log('Sending comment:', commentDto);
-
-    // komentar na back
-    const response = await apiClient.post('/comments/new', commentDto);
-    console.log('Comment added successfully:', response.data);
-
-    // kreiranje kompletnog komentar objekta
-    const newCommentObj = {
-      id: response.data.id,
-      username: user.value.username,
-      content: response.data.content,
-      creationTime: response.data.creationTime || new Date().toISOString(),
-      userId: user.value.id
-    };
-
-    // dodavanje na vrhu liste (push dodaje na kraj)
-    post.comments = post.comments || [];
-    post.comments.unshift(newCommentObj);  // unshift dodaje na pocetak
-
-    // resetovanje inputa
-    newComment.value[post.id] = '';
-
-  } catch (error) {
-    console.error('Error adding comment:', error);
-
-    // rukovanje rate limit greskom
-    if (error.response && error.response.status === 429) {
-      const errorData = error.response.data;
-      alert(`Rate limit exceeded: ${errorData.message}\nRemaining comments: ${errorData.remainingComments}`);
-    } else {
-      alert('Error adding comment. Please try again.');
-    }
-  }
-};
-
-onMounted(async () => {
-    try {
-        const response = await apiClient.get('posts/all');
-        posts.value = response.data;
-
-        console.log('Posts loaded:', posts.value);
-        console.log('User ID:', user.value.id);
-
-        // sortiranje po datumu
-        posts.value.sort((a, b) => {
-            const dateA = new Date(a.creationTime);
-            const dateB = new Date(b.creationTime);
-            return dateB - dateA;
-        });
-
-        // za svaki post
-        for (const post of posts.value) {
-          // ucitavanje username-a za post
+      try {
+        const commentsRes = await apiClient.get(`comments/${post.id}`);
+        const comments = commentsRes.data;
+        for (const comment of comments) {
           try {
-            const userResponse = await apiClient.get(`users/findUsername/${post.userId}`);
-            post.username = userResponse.data;
-          } catch (error) {
-            console.log(error);
-            post.username = 'Unknown User';
-          }
-          
-          // ucitavanje komentara za post
-          try {
-            const commentsResponse = await apiClient.get(`comments/${post.id}`);
-            const loadedComments = commentsResponse.data;
-
-            // ucitavanje username-a za svaki komentar sekvencijalno
-            for (const comment of loadedComments) {
-              try {
-                const userRes = await apiClient.get(`users/findUsername/${comment.userId}`);
-                comment.username = userRes.data;
-              } catch (err) {
-                console.error(`Failed to load username for comment ${comment.id}`, err);
-                comment.username = 'Unknown User';
-              }
-            }
-
-            // sortiranje komentara po creationTime (najnoviji prvi)
-            post.comments = loadedComments.sort(
-              (a, b) => new Date(b.creationTime) - new Date(a.creationTime)
-            );
-          } catch (error) {
-            console.error(`Error loading comments for post ${post.id}:`, error);
-            post.comments = [];
+            const userRes = await apiClient.get(`users/findUsername/${comment.userId}`);
+            comment.username = userRes.data;
+          } catch {
+            comment.username = 'Unknown User';
           }
         }
-
-        // inicijalizacija praznih polja za unos komentara
-        posts.value.forEach((post) => {
-          newComment.value[post.id] = '';
-        });
-    } catch (error) {
-        console.error('Error loading posts:', error);
+        post.comments = comments.sort((a, b) => new Date(b.creationTime) - new Date(a.creationTime));
+      } catch {
+        post.comments = [];
+      }
     }
+  } catch (error) {
+    console.error('Error loading posts:', error);
+  }
+};
+
+onMounted(() => {
+  loadPosts();
 });
 
-const alertUser = () => {
-  if (user.value.id === -1) {
-    alertUserBool.value = true;
-    setTimeout(() => {
-      alertFadeOut.value = true;
-      onAlertTransitionEnd();
-      errorMessage.value = 'To leave a like or comment, please ';
-    }, 3000); // Fade out after 3 seconds
-  }
-}
+const refreshPosts = () => {
+  loadPosts();
+};
+
+const updatePost = (updatedPost) => {
+  const index = posts.value.findIndex((p) => p.id === updatedPost.id);
+  if (index !== -1) posts.value[index] = updatedPost;
+};
+
+const removePost = (postId) => {
+  posts.value = posts.value.filter((p) => p.id !== postId);
+};
+
+const showLoginAlert = () => {
+  alertUserBool.value = true;
+  setTimeout(() => {
+    alertFadeOut.value = true;
+    onAlertTransitionEnd();
+  }, 3000);
+};
 
 const onAlertTransitionEnd = () => {
   if (alertFadeOut.value) {
-    alertFadeOut.value = false; // Reset fade-out state
-    alertUserBool.value = false; // Hide the alert after fade-out
+    alertFadeOut.value = false;
+    alertUserBool.value = false;
   }
-}
-
-const goToAccount = (username) => {
-  router.push({ name: 'UserProfile', query: { username } });
 };
 </script>
 
