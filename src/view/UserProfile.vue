@@ -5,14 +5,7 @@
         <div class="profile-details">
           <div :class="['stats', { 'non-edit-mode': !editMode }]">
             <div class="username">
-              <p v-if="!editMode">{{ profileUser.username }}</p>
-              <input
-                v-else
-                type="text"
-                class="edit-input"
-                placeholder="Username"
-                v-model="editDetails.username"
-              />
+              <p>{{ profileUser.username }}</p>
             </div>
             <div class="follow-stats">
               <p @click="openFollowersDialog" class="clickable">
@@ -27,8 +20,7 @@
           <p>{{ profileUser.email }}</p>
 
           <div class="full-name" v-if="!editMode">
-            <p>{{ profileUser.firstName }}</p>
-            <p>{{ profileUser.lastName }}</p>
+            <p>{{ profileUser.firstName }} {{ profileUser.lastName }}</p>
           </div>
           <div class="edit-input-full-name" v-else>
             <input
@@ -43,8 +35,26 @@
             />
           </div>
 
-          <div class="password-edit">
-            <!-- TODO: implementacija promene lozinke -->
+          <div class="password-edit" v-if="editMode">
+            <div class="edit-input-full-name">
+              <p>Old Password</p>
+              <input type="password" v-model="passwordEdit.old"/>
+            </div>
+            <div class="edit-input-full-name">
+              <p>New Password</p>
+              <input type="password" v-model="passwordEdit.new"/>
+              <br/>
+              <p>Confirm New Password</p>
+              <input type="password" v-model="passwordEdit.confirmNew"/>
+              <p style="color: red;">{{errorMsg}}</p>
+            </div>
+            <div>
+              <button
+                v-on:click="changePassword()"
+                style="margin-top: 9rem;">
+                Save Password Change
+              </button>
+            </div>
           </div>
 
           <div class="buttons">
@@ -64,7 +74,6 @@
             </button>
           </div>
 
-          <!-- Dugme za follow/unfollow ako nije tvoj profil -->
           <div v-if="!usersProfile" class="follow-button-container">
             <button
               class="action-button follow-button"
@@ -89,15 +98,44 @@
         </div>
       </div>
 
-      <div class="content">
-        <Post :post="testPost"></Post>
+      <div v-if="showComments">
+        <div class="content" v-if="posts.length">
+          <PostComponent
+            v-for="post in posts"
+            :key="post.id"
+            :post="post"
+            :userId="user.id"
+            @post-updated="refreshPosts"
+            @post-edited="updatePost"
+            @post-deleted="removePost"
+            @alert-user="showLoginAlert"
+          />
+        </div>
+        <div v-else>
+          <p>No Posts</p>
+        </div>
+      </div>
+      <div v-else>
+        <div class="comments">
+          <!-- v-for="comment in comments"
+          :key="comment.id"> -->
+          <div class="comment">
+            <div class="comment-info">
+              <p>Username</p>
+              <p>Creation Time</p>
+            </div>
+            <div>
+              <p>Description</p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
     <div v-else class="error">
       <h1>Unable to go to {{ username }}'s profile</h1>
     </div>
-    <!-- Modal za Followers -->
+
     <div
       v-if="showFollowersDialog"
       class="modal-overlay"
@@ -116,13 +154,6 @@
               >{{ follower.username }} ({{ follower.firstName }}
               {{ follower.lastName }})</span
             >
-            <button
-              class="modal-follow-btn"
-              :disabled="followLoadingMap[follower.id]"
-              @click="toggleFollowInModal(follower)"
-            >
-              {{ isFollowingMap[follower.id] ? "Unfollow" : "Follow" }}
-            </button>
           </li>
           <li v-if="followersList.length === 0">No followers found.</li>
         </ul>
@@ -130,7 +161,6 @@
       </div>
     </div>
 
-    <!-- Modal za Following -->
     <div
       v-if="showFollowingDialog"
       class="modal-overlay"
@@ -149,13 +179,6 @@
               >{{ user.username }} ({{ user.firstName }}
               {{ user.lastName }})</span
             >
-            <button
-              class="modal-follow-btn"
-              :disabled="followLoadingMap[user.id]"
-              @click="toggleFollowInModal(user)"
-            >
-              {{ isFollowingMap[user.id] ? "Unfollow" : "Follow" }}
-            </button>
           </li>
           <li v-if="followingList.length === 0">No users followed.</li>
         </ul>
@@ -169,7 +192,7 @@
 
 import bunnyImage from "@/assets/rabbit-marker.png";
 import apiClient from "@/axios/axios";
-import Post from "@/components/Post.vue";
+import PostComponent from "@/components/Post.vue";
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
@@ -213,11 +236,18 @@ const editDetails = ref({
   password: "",
 });
 
-const testPost = ref({
-  likes: 10,
-  description: "Cute bunny ^^",
-});
+const posts = ref([])
 
+const passwordEdit = ref({
+  old: '',
+  new: '',
+  confirmNew: ''
+})
+
+const errorMsg = ref("")
+
+const showComments = ref(false)
+// const comments = ref([])
 
 watch(
   username,
@@ -259,6 +289,7 @@ watch(
       }
 
       await loadProfileStats();
+      await getPosts();
 
       if (!usersProfile.value) {
         await checkFollowStatus();
@@ -297,9 +328,19 @@ function closeFollowingDialog() {
 
 import { reactive } from "vue";
 
-const isFollowingMap = reactive({}); // prati da li korisnik prati određenog usera
-const followLoadingMap = reactive({}); // loading state za dugmad u modalu
+const isFollowingMap = reactive({});
+const followLoadingMap = reactive({});
 
+async function getPosts() {
+  apiClient.get(`/posts/user/${profileUser.value.id}`)
+  .then((response) => {
+    posts.value = response.data
+    console.log(posts.value)
+  })
+  .catch((error) => {
+    alert(error)
+  })
+}
 
 async function updateFollowStatusForList(users) {
   for (const u of users) {
@@ -325,8 +366,7 @@ async function loadFollowers() {
   }
   followersLoading.value = true;
   try {
-    const encoded = encodeURIComponent(username.value);
-    const response = await apiClient.get(`/following/${encoded}/followers`);
+    const response = await apiClient.get(`/following/${profileUser.value.username}/followers`);
     followersList.value = response.data;
     await updateFollowStatusForList(followersList.value);
   } catch (error) {
@@ -345,8 +385,7 @@ async function loadFollowing() {
   }
   followingLoading.value = true;
   try {
-    const encoded = encodeURIComponent(username.value);
-    const response = await apiClient.get(`/following/${encoded}/following`);
+    const response = await apiClient.get(`/following/${profileUser.value.username}/followed`);
     followingList.value = response.data;
     await updateFollowStatusForList(followingList.value);
   } catch (error) {
@@ -355,31 +394,6 @@ async function loadFollowing() {
     followingLoading.value = false;
   }
 }
-
-async function toggleFollowInModal(user) {
-  if (followLoadingMap[user.id]) return;
-  followLoadingMap[user.id] = true;
-  const encoded = encodeURIComponent(user.username);
-  try {
-    if (isFollowingMap[user.id]) {
-      await apiClient.delete(`/following/unfollow/${encoded}`);
-      isFollowingMap[user.id] = false;
-      profileStats.value.followersCount = Math.max(
-        0,
-        profileStats.value.followersCount - 1
-      );
-    } else {
-      await apiClient.post(`/following/follow/${encoded}`);
-      isFollowingMap[user.id] = true;
-      profileStats.value.followersCount++;
-    }
-  } catch (error) {
-    console.error("Error toggling follow in modal:", error);
-  } finally {
-    followLoadingMap[user.id] = false;
-  }
-}
-
 
 async function loadProfileStats() {
   try {
@@ -402,7 +416,6 @@ async function loadProfileStats() {
   }
 }
 
-// Proveri da li trenutni user prati profil koji gledamo
 async function checkFollowStatus() {
   try {
     const encoded = encodeURIComponent(username.value);
@@ -414,7 +427,6 @@ async function checkFollowStatus() {
   }
 }
 
-// Toggle follow/unfollow akcija
 async function toggleFollow() {
   if (followLoading.value) return;
   followLoading.value = true;
@@ -440,13 +452,70 @@ async function toggleFollow() {
   }
 }
 
+function changePassword() {
+  try {
+    if(passwordEdit.value.old == "" ||
+      passwordEdit.value.new == "" ||
+      passwordEdit.value.confirmNew == ""
+    ) {
+      errorMsg.value = "All fileds are required"
+      return
+    }
+
+    if(passwordEdit.value.confirmNew !== passwordEdit.value.new) {
+      errorMsg.value = "Passwords do not match"
+      return
+    }
+
+    var updatePassword = {
+      userId: user.value.id,
+      oldPassword: passwordEdit.value.old,
+      newPassword: passwordEdit.value.new,
+      confirmNewPassword: passwordEdit.value.confirmNew
+    }
+
+
+
+    apiClient.put(`/authentication/update-password`, updatePassword)
+    .then(() => {
+      alert("Password successfully changed")
+      errorMsg.value = ""
+      passwordEdit.value.old = ""
+      passwordEdit.value.new = ""
+      passwordEdit.value.confirmNew = ""
+    })
+    .catch((error) => {
+      errorMsg.value = error.response?.data || "Unexpected error"
+    })
+  } catch (error) {
+    alert(error);
+  }
+}
+
 function edit() {
   editMode.value = true;
 }
 
 function saveChanges() {
-  // TODO: implement save API call, update profileUser with editDetails
-  editMode.value = false;
+  let updateProfileInfo = {
+    id: user.value.id,
+    firstName: editDetails.value.firstName,
+    lastName: editDetails.value.lastName,
+    username: editDetails.value.username
+  }
+
+  apiClient.post(`/users`, updateProfileInfo)
+  .then((response) => {
+    const userData = response.data;
+    store.dispatch('setUser', userData);
+    sessionStorage.setItem('user', JSON.stringify(userData));
+
+    profileUser.value = userData
+    user.value = userData
+    editMode.value = false; 
+  }).catch((error) => {
+    console.log(error)
+  })
 }
 
 function cancel() {
@@ -459,6 +528,7 @@ function cancel() {
   });
   editMode.value = false;
 }
+
 </script>
 
 <style scoped>
@@ -669,6 +739,7 @@ function cancel() {
   color: #ec5d43;
   font-weight: 600;
   font-family: "Delius Swash Caps", cursive;
+  margin-left: 1rem;
 }
 
 .edit-mode-buttons p:hover {
@@ -781,6 +852,36 @@ function cancel() {
   text-align: center;
   padding: 0 2rem;
   font-family: "Delius Swash Caps", cursive;
+}
+
+.password-edit{
+  display: flex;
+  justify-content: center;
+  gap: 2rem;
+  border: 2px solid lightgray;
+  border-radius: 10px;
+  padding: 2rem;
+}
+
+.password-edit input {
+  width: 20rem;
+  margin-bottom: 1rem;
+}
+
+.comments {
+  columns: 300px 5;
+}
+
+.comment {
+  background-color: lightgray;
+  border-radius: 10px;
+  padding: 5px;
+  break-inside: avoid;
+}
+
+.comment-info {
+  display: flex;
+  justify-content: space-evenly;
 }
 
 /* Responsive */
