@@ -30,10 +30,8 @@
     </div>
 
     <div class="image-container">
-  <img :src="imageUrl" alt="Post image" />
-
-</div>
-
+      <img :src="imageUrl" alt="Post image" />
+    </div>
 
     <div class="interaction-buttons">
       <button 
@@ -47,7 +45,7 @@
 
       <button class="interaction-btn" @click="focusCommentInput">
         <font-awesome-icon :icon="['fas', 'comment']" />
-        <span>{{ post.comments?.length || 0 }}</span>
+        <span>{{ localComments.length }}</span>
       </button>
     </div>
 
@@ -61,8 +59,8 @@
       {{ post.description }}
     </p>
 
-    <div class="comments-list" v-if="post.comments?.length > 0">
-      <div v-for="comment in post.comments" :key="comment.id" class="comment">
+    <div class="comments-list" v-if="localComments.length > 0">
+      <div v-for="comment in localComments" :key="comment.id" class="comment">
         <strong 
           class="username clickable" 
           @click="goToUserProfile(comment.username)"
@@ -79,6 +77,7 @@
         type="text" 
         placeholder="Add a comment..." 
         ref="commentInput"
+        @keyup.enter="addComment"
       />
       <button @click="addComment" :disabled="!newComment.trim()">Post</button>
     </div>
@@ -116,6 +115,8 @@ export default {
       likesCount: this.post.likes,
       newComment: '',
       imageUrl: '',
+      localComments: [], // Lokalna kopija komentara
+      currentUsername: '', // Čuvamo username trenutnog korisnika
       isEditing: false,
       editDescription: '',
       descLimit: 250
@@ -124,23 +125,49 @@ export default {
   computed: {
     isPostOwner() {
       return this.userId === this.post.userId;
+    },
+    currentUserId() {
+      return this.userId;
+    }
+  },
+  watch: {
+    // Kada se post.comments promeni (nakon refresh-a), ažuriraj lokalnu kopiju
+    'post.comments': {
+      handler(newComments) {
+        this.localComments = [...(newComments || [])];
+      },
+      deep: true
     }
   },
   async created() {
-    // Proveri da li je lajkovano
     try {
       const res = await apiClient.get(`/posts/${this.post.id}/liked-by/${this.userId}`);
       this.isLiked = res.data;
     } catch (e) {
       console.error('Error checking like status', e);
     }
-     await this.loadImage();
+    
+    // Učitaj username trenutnog korisnika
+    if (this.userId !== -1) {
+      try {
+        const userRes = await apiClient.get(`users/findUsername/${this.userId}`);
+        this.currentUsername = userRes.data;
+      } catch (e) {
+        console.error('Error fetching current username', e);
+        this.currentUsername = 'Unknown User';
+      }
+    }
+    
+    // Kopiraj postojeće komentare iz post-a
+    this.localComments = [...(this.post.comments || [])];
+    
+    await this.loadImage();
   },
   beforeUnmount() {
-  if (this.imageUrl) {
-    URL.revokeObjectURL(this.imageUrl);
-  }
-},
+    if (this.imageUrl) {
+      URL.revokeObjectURL(this.imageUrl);
+    }
+  },
   methods: {
     async toggleLike() {
       if (this.userId === -1) {
@@ -162,37 +189,51 @@ export default {
     },
     async addComment() {
       if (!this.newComment.trim()) return;
+      
+      // Kreiraj novi komentar objekat
+      const newCommentObj = {
+        id: Date.now(), // Privremeni ID
+        username: this.currentUsername,
+        content: this.newComment.trim(),
+        userId: this.userId,
+        creationTime: new Date()
+      };
+      
+      // Dodaj odmah u lokalnu listu
+      this.localComments.unshift(newCommentObj);
+      
+      // Očisti input
+      const commentText = this.newComment;
+      this.newComment = '';
+      
       try {
+        // Pošalji na server
         const res = await apiClient.post('/comments/new', {
           postId: this.post.id,
           userId: this.userId,
-          content: this.newComment,
+          content: commentText,
           creationTime: new Date()
         });
-        const newCommentObj = {
-          id: res.data.id,
-          username: this.post.username,
-          content: this.newComment,
-          userId: this.userId,
-          creationTime: new Date()
-        };
-        this.newComment = '';
-        this.$emit('comment-added', newCommentObj);
+        
+        // Ažuriraj sa pravim ID-om sa servera
+        newCommentObj.id = res.data.id;
+        
       } catch (e) {
         console.error('Error adding comment', e);
+        // Ukloni komentar iz lokalne liste ako je greška
+        this.localComments = this.localComments.filter(c => c.id !== newCommentObj.id);
+        this.newComment = commentText; // Vrati text u input
+        alert('Greška pri dodavanju komentara. Pokušajte ponovo.');
       }
     },
-     async loadImage() {
-    try {
-      const response = await apiClient.get(`/posts/${this.post.id}/image`, { responseType: 'blob' });
-      this.imageUrl = URL.createObjectURL(response.data);
-    } catch (e) {
-      console.error('Error loading image', e);
-    }
-  },
-    getPostImageUrl(postId) {
-    return apiClient.get(`/posts/${postId}/image`);
-  },
+    async loadImage() {
+      try {
+        const response = await apiClient.get(`/posts/${this.post.id}/image`, { responseType: 'blob' });
+        this.imageUrl = URL.createObjectURL(response.data);
+      } catch (e) {
+        console.error('Error loading image', e);
+      }
+    },
 
 async editPost() {
   this.isEditing = true;
@@ -454,7 +495,6 @@ async deletePost() {
   background-color: #f5f5f5;
 }
 
-/* Dodaj klikabilan username */
 .username.clickable {
   cursor: pointer;
   color: #ec5d43;
@@ -464,6 +504,7 @@ async deletePost() {
 .username.clickable:hover {
   color: #c94530;
 }
+
 .posts-list {
   display: flex;
   flex-direction: column;
