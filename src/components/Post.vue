@@ -79,7 +79,10 @@
         ref="commentInput"
         @keyup.enter="addComment"
       />
-      <button @click="addComment" :disabled="!newComment.trim()">Post</button>
+      <small :class="{ danger: newComment.length > commentLimit }">
+        {{ newComment.length }}/{{ commentLimit }}
+      </small>
+      <button @click="addComment" :disabled="!newComment.trim() || newComment.length > commentLimit">Post</button>
     </div>
     <div v-if="isEditing" class="modal-overlay">
       <div class="modal">
@@ -119,7 +122,8 @@ export default {
       currentUsername: '', // Čuvamo username trenutnog korisnika
       isEditing: false,
       editDescription: '',
-      descLimit: 250
+      descLimit: 250,
+      commentLimit: 250
     };
   },
   computed: {
@@ -187,45 +191,47 @@ export default {
       this.isEditing = false;
       this.showOptions = false;
     },
-    async addComment() {
-      if (!this.newComment.trim()) return;
-      
-      // Kreiraj novi komentar objekat
-      const newCommentObj = {
-        id: Date.now(), // Privremeni ID
-        username: this.currentUsername,
-        content: this.newComment.trim(),
-        userId: this.userId,
-        creationTime: new Date()
-      };
-      
-      // Dodaj odmah u lokalnu listu
-      this.localComments.unshift(newCommentObj);
-      
-      // Očisti input
-      const commentText = this.newComment;
-      this.newComment = '';
-      
-      try {
-        // Pošalji na server
-        const res = await apiClient.post('/comments/new', {
-          postId: this.post.id,
-          userId: this.userId,
-          content: commentText,
-          creationTime: new Date()
-        });
-        
-        // Ažuriraj sa pravim ID-om sa servera
-        newCommentObj.id = res.data.id;
-        
-      } catch (e) {
-        console.error('Error adding comment', e);
-        // Ukloni komentar iz lokalne liste ako je greška
-        this.localComments = this.localComments.filter(c => c.id !== newCommentObj.id);
-        this.newComment = commentText; // Vrati text u input
-        alert('Greška pri dodavanju komentara. Pokušajte ponovo.');
-      }
-    },
+async addComment() {
+  const text = (this.newComment ?? '').trim();
+  const limit = this.commentLimit;
+
+  if (text.length === 0) return;
+  if (text.length > limit) {
+    alert(`Comment cannot exceed ${limit} characters.`);
+    return;
+  }
+
+  // kreiranje novog komentara object
+  const newCommentObj = {
+    id: Date.now(), // privremeni ID
+    username: this.currentUsername,
+    content: text,  // koristi cist tekst
+    userId: this.userId,
+    creationTime: new Date()
+  };
+
+  // add na vrh
+  this.localComments.unshift(newCommentObj);
+
+  this.newComment = '';
+
+  try {
+    const res = await apiClient.post('/comments/new', {
+      postId: this.post.id,
+      userId: this.userId,
+      content: text,
+      creationTime: new Date()
+    });
+
+    // azuriranje sa pravim ID-om
+    newCommentObj.id = res.data.id;
+  } catch (e) {
+    console.error('Error adding comment', e);
+    this.localComments = this.localComments.filter(c => c.id !== newCommentObj.id);
+    this.newComment = text; // vrati tekst u input
+    alert('Greška pri dodavanju komentara. Pokušajte ponovo.');
+  }
+},
     async loadImage() {
       try {
         const response = await apiClient.get(`/posts/${this.post.id}/image`, { responseType: 'blob' });
@@ -512,6 +518,14 @@ async deletePost() {
   gap: 1.5rem;
 }
 
+.comment-input small { 
+  opacity: .7; 
+}
+
+.comment-input small.danger { 
+  color: #ce361f; opacity: 1; font-weight: bold; 
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -574,6 +588,5 @@ async deletePost() {
   color: #ce361f;
   font-weight: bold;
 }
-
 
 </style>

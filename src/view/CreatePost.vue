@@ -13,11 +13,14 @@
             rows="3"
             v-model="post.description">
           </CFormTextarea>
+            <small class="counter" :class="{ danger: descLength > descLimit }">
+              {{ descLength }}/{{ descLimit }}
+            </small>
         </div>
 
         <div class="form-group">
           <label>Share a photo!</label>
-          <FileField @file-selected="handleFileSelected" :initialImage="missingImage" />
+          <FileField :key="fileFieldKey" @file-selected="handleFileSelected" :initialImage="missingImage" />
           <CButton class="upload-btn" @click="triggerFileInput">
             <font-awesome-icon :icon="['fas', 'file-arrow-up']" /> Upload Photo
           </CButton>
@@ -28,26 +31,29 @@
           <MapComponent class="map-container" @map-clicked="handleMapData"></MapComponent>
         </div>
 
-        <CButton class="create-btn" v-on:click.prevent="createPost">
+        <CButton class="create-btn" :disabled="!canSubmit" @click.prevent="createPost">
           <font-awesome-icon :icon="['fas', 'carrot']" /> Share Bunny Post
         </CButton>
+
       </div>
     </div>
   </div>
 </template>
   
   <script setup>
-  import { ref } from 'vue';
+  import { ref, computed } from 'vue';
+  import { useRouter } from 'vue-router'; 
   import { CButton, CFormTextarea } from '@coreui/vue';
   import MapComponent from '@/components/MapComponent.vue';
   import FileField from '@/components/FileField.vue';
   import { useStore } from 'vuex';
   import apiClient from '@/axios/axios';
   
+  const router = useRouter(); 
   const store = useStore();
   
   // Initialize formData for the image
-  const formData = new FormData();
+  let formData = new FormData();
   
   const post = ref({
     description: '',
@@ -65,7 +71,18 @@
   });
   
   const missingImage = require('@/assets/missing-image.png');
-  
+  const fileFieldKey = ref(0);  
+
+  const descLimit = 250;
+  const descLength = computed(() => (post.value.description ?? '').length);
+  const isDescValid = computed(() => descLength.value > 0 && descLength.value <= descLimit);
+
+  const canSubmit = computed(() => {
+    const hasImage = !!post.value.image;
+    const hasLocation = !!post.value.location?.latitude && !!post.value.location?.longitude;
+    return isDescValid.value && hasImage && hasLocation;
+  });
+
   const handleFileSelected = (file) => {
     // Append the file to formData
     console.log(file)
@@ -91,38 +108,43 @@
     };
   };
   
-const createPost = () => {
-  // Check if required fields are filled
-  if (!post.value.description || !post.value.location.latitude || !post.value.image) {
-    console.error("All fields must be filled out!");
-    return;
+const createPost = async () => {
+  const desc = (post.value.description ?? '').trim();
+
+  if (desc.length === 0) { alert('Description cannot be empty.'); return; }
+  if (desc.length > descLimit) { alert(`Description cannot exceed ${descLimit} characters.`); return; }
+  if (!post.value.image) { alert('Please add a photo.'); return; }
+  if (!post.value.location?.latitude || !post.value.location?.longitude) { alert('Please pick a location on the map.'); return; }
+
+  const fd = new FormData();
+  fd.append('description', desc);
+  fd.append('userId', post.value.userId);
+  fd.append('address', JSON.stringify(post.value.location));
+  fd.append('image', post.value.image);
+
+  try {
+    await apiClient.post('posts/create', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    // reset forme
+    post.value.description = '';
+    post.value.image = null;
+    post.value.location = {
+      country: '', postalCode: 0, city: '', street: '', number: 0, latitude: 0, longitude: 0
+    };
+
+    fileFieldKey.value++;
+
+    alert('Post created successfully.');
+
+    router.push('/feed');
+  } catch (error) {
+    console.error('Error creating post: ', error);
+    alert('Failed to create post. Please try again.');
   }
-
-  formData.append('description', post.value.description); // Description
-  formData.append('userId', post.value.userId); // User ID (can be from Vuex store or wherever)
-  formData.append('address', JSON.stringify(post.value.location)); // Serialize address as JSON string
-
-  for (let [key, value] of formData.entries()) {
-    if (value instanceof File) {
-      console.log(`${key}:`, value.name);  // Log the name of the file
-    } else {
-      console.log(`${key}:`, value);  // Log other fields
-    }
-  }
-
-  // Send the POST request with formData and appropriate headers
-  apiClient.post('posts/create', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    }
-  })
-  .then(() => {
-    alert('Post created successfully');
-  })
-  .catch(error => {
-    console.error("Error creating post: ", error);
-  });
 };
+
   </script>
   
   <style scoped>
@@ -259,5 +281,23 @@ label {
   display: block;
   object-fit: contain; 
 }
+
+.counter {
+  display: block;
+  text-align: right;
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: #4a4a4a;
+}
+.counter.danger {
+  color: #ce361f;
+  font-weight: bold;
+}
+
+.create-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 </style>
   
