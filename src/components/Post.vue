@@ -71,7 +71,7 @@
       </div>
     </div>
 
-    <div v-if="currentUserId !== -1" class="comment-input">
+    <div v-if="canComment" class="comment-input">
       <input 
         v-model="newComment" 
         type="text" 
@@ -109,7 +109,8 @@ export default {
   name: 'PostComponent',
   props: {
     post: { type: Object, required: true },
-    userId: { type: Number, required: true }
+    userId: { type: Number, required: true },
+    followedUsersIds: { type: Array, default: () => [] }
   },
   data() {
     return {
@@ -132,6 +133,12 @@ export default {
     },
     currentUserId() {
       return this.userId;
+    },
+    canComment() {
+      return (
+        this.userId !== -1 &&
+        (this.followedUsersIds.includes(this.post.userId) || this.userId === this.post.userId)
+      );
     }
   },
   watch: {

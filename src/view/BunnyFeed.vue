@@ -7,6 +7,7 @@
         :key="post.id"
         :post="post"
         :userId="user.id"
+        :followed-users-ids="followedUsersIds"
         @post-updated="refreshPosts"
         @post-edited="updatePost"
         @post-deleted="removePost"
@@ -41,6 +42,18 @@ const posts = ref([]);
 const alertUserBool = ref(false);
 const alertFadeOut = ref(false);
 const errorMessage = ref('To leave a like or comment, please ');
+const followedUsersIds = ref([]);
+
+const fetchFollowedUsersIds = async () => {
+  if (user.value && user.value.id !== -1) {
+    try {
+      const response = await apiClient.get("/users/me/followed-ids");
+      followedUsersIds.value = response.data;
+    } catch (error) {
+      console.error("Failed to fetch followed users", error);
+    }
+  }
+};
 
 const loadPosts = async () => {
   try {
@@ -81,6 +94,7 @@ const loadPosts = async () => {
 
 onMounted(() => {
   loadPosts();
+  fetchFollowedUsersIds();
 });
 
 const refreshPosts = () => {
