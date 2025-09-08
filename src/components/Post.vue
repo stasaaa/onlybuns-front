@@ -208,19 +208,9 @@ async addComment() {
     return;
   }
 
-  // kreiranje novog komentara object
-  const newCommentObj = {
-    id: Date.now(), // privremeni ID
-    username: this.currentUsername,
-    content: text,  // koristi cist tekst
-    userId: this.userId,
-    creationTime: new Date()
-  };
-
-  // add na vrh
-  this.localComments.unshift(newCommentObj);
-
-  this.newComment = '';
+  // ne dodaje se odmah u listu - cekanje potvrde
+  const originalComment = this.newComment;
+  this.newComment = ''; // cisti input
 
   try {
     const res = await apiClient.post('/comments/new', {
@@ -230,13 +220,33 @@ async addComment() {
       creationTime: new Date()
     });
 
-    // azuriranje sa pravim ID-om
-    newCommentObj.id = res.data.id;
+    // tek se sada doda u listu kada backend potvrdi uspeh
+    const newCommentObj = {
+      id: res.data.id,
+      username: this.currentUsername,
+      content: text,
+      userId: this.userId,
+      creationTime: new Date()
+    };
+
+    this.localComments.unshift(newCommentObj);
+
   } catch (e) {
     console.error('Error adding comment', e);
-    this.localComments = this.localComments.filter(c => c.id !== newCommentObj.id);
-    this.newComment = text; // vrati tekst u input
-    alert('Greška pri dodavanju komentara. Pokušajte ponovo.');
+    
+    // vrati text u input ako se desi greska
+    this.newComment = originalComment;
+    
+    if (e.response && e.response.status === 429) {
+      const errorData = e.response.data;
+      if (errorData.error === "General rate limit exceeded") {
+        alert(`Rate limit exceeded: ${errorData.message}`);
+      } else if (errorData.error === "Comment rate limit exceeded") {
+        alert(`Comment limit exceeded: ${errorData.message}`);
+      }
+    } else {
+      alert('An error occurred while adding the comment. Please try again.');
+    }
   }
 },
     async loadImage() {
