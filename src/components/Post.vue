@@ -71,7 +71,7 @@
       </div>
     </div>
 
-    <div v-if="currentUserId !== -1" class="comment-input">
+    <div v-if="canComment" class="comment-input">
       <input 
         v-model="newComment" 
         type="text" 
@@ -79,7 +79,25 @@
         ref="commentInput"
         @keyup.enter="addComment"
       />
-      <button @click="addComment" :disabled="!newComment.trim()">Post</button>
+      <small :class="{ danger: newComment.length > commentLimit }">
+        {{ newComment.length }}/{{ commentLimit }}
+      </small>
+      <button @click="addComment" :disabled="!newComment.trim() || newComment.length > commentLimit">Post</button>
+    </div>
+    <div v-if="isEditing" class="modal-overlay">
+      <div class="modal">
+        <h3 class="modal-title">Edit Post Caption</h3>
+        <textarea v-model="editDescription" class="modal-textarea"></textarea>
+        <div class="modal-footer">
+          <small :class="{ danger: editDescription.length > descLimit }">
+            {{ editDescription.length }}/{{ descLimit }}
+          </small>
+          <div class="modal-actions">
+            <button @click="saveEdit" class="btn-primary">Save</button>
+            <button @click="closeModal" class="btn-secondary">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -91,7 +109,8 @@ export default {
   name: 'PostComponent',
   props: {
     post: { type: Object, required: true },
-    userId: { type: Number, required: true }
+    userId: { type: Number, required: true },
+    followedUsersIds: { type: Array, default: () => [] }
   },
   data() {
     return {
@@ -101,7 +120,11 @@ export default {
       newComment: '',
       imageUrl: '',
       localComments: [], // Lokalna kopija komentara
-      currentUsername: '' // Čuvamo username trenutnog korisnika
+      currentUsername: '', // Čuvamo username trenutnog korisnika
+      isEditing: false,
+      editDescription: '',
+      descLimit: 250,
+      commentLimit: 250
     };
   },
   computed: {
@@ -110,6 +133,12 @@ export default {
     },
     currentUserId() {
       return this.userId;
+    },
+    canComment() {
+      return (
+        this.userId !== -1 &&
+        (this.followedUsersIds.includes(this.post.userId) || this.userId === this.post.userId)
+      );
     }
   },
   watch: {
@@ -165,45 +194,61 @@ export default {
         console.error('Error toggling like', e);
       }
     },
-    async addComment() {
-      if (!this.newComment.trim()) return;
-      
-      // Kreiraj novi komentar objekat
-      const newCommentObj = {
-        id: Date.now(), // Privremeni ID
-        username: this.currentUsername,
-        content: this.newComment.trim(),
-        userId: this.userId,
-        creationTime: new Date()
-      };
-      
-      // Dodaj odmah u lokalnu listu
-      this.localComments.unshift(newCommentObj);
-      
-      // Očisti input
-      const commentText = this.newComment;
-      this.newComment = '';
-      
-      try {
-        // Pošalji na server
-        const res = await apiClient.post('/comments/new', {
-          postId: this.post.id,
-          userId: this.userId,
-          content: commentText,
-          creationTime: new Date()
-        });
-        
-        // Ažuriraj sa pravim ID-om sa servera
-        newCommentObj.id = res.data.id;
-        
-      } catch (e) {
-        console.error('Error adding comment', e);
-        // Ukloni komentar iz lokalne liste ako je greška
-        this.localComments = this.localComments.filter(c => c.id !== newCommentObj.id);
-        this.newComment = commentText; // Vrati text u input
-        alert('Greška pri dodavanju komentara. Pokušajte ponovo.');
-      }
+    closeModal() {
+      this.isEditing = false;
+      this.showOptions = false;
     },
+async addComment() {
+  const text = (this.newComment ?? '').trim();
+  const limit = this.commentLimit;
+
+  if (text.length === 0) return;
+  if (text.length > limit) {
+    alert(`Comment cannot exceed ${limit} characters.`);
+    return;
+  }
+
+  // ne dodaje se odmah u listu - cekanje potvrde
+  const originalComment = this.newComment;
+  this.newComment = ''; // cisti input
+
+  try {
+    const res = await apiClient.post('/comments/new', {
+      postId: this.post.id,
+      userId: this.userId,
+      content: text,
+      creationTime: new Date()
+    });
+
+    // tek se sada doda u listu kada backend potvrdi uspeh
+    const newCommentObj = {
+      id: res.data.id,
+      username: this.currentUsername,
+      content: text,
+      userId: this.userId,
+      creationTime: new Date()
+    };
+
+    this.localComments.unshift(newCommentObj);
+
+  } catch (e) {
+    console.error('Error adding comment', e);
+    
+    // vrati text u input ako se desi greska
+    this.newComment = originalComment;
+    
+    if (e.response && e.response.status === 429) {
+      const errorData = e.response.data;
+      if (errorData.error === "General rate limit exceeded") {
+        alert(`Rate limit exceeded: ${errorData.message}`);
+      } else if (errorData.error === "Comment rate limit exceeded") {
+        alert(`Comment limit exceeded: ${errorData.message}`);
+      }
+    } else {
+      alert('An error occurred while adding the comment. Please try again.');
+    }
+  }
+},
     async loadImage() {
       try {
         const response = await apiClient.get(`/posts/${this.post.id}/image`, { responseType: 'blob' });
@@ -212,27 +257,51 @@ export default {
         console.error('Error loading image', e);
       }
     },
-    async editPost() {
-      const updatedDesc = prompt('Update post description:', this.post.description);
-      if (updatedDesc === null) return;
-      try {
-        const updatedPost = { ...this.post, description: updatedDesc };
-        await apiClient.put(`/posts/${this.post.id}`, updatedPost);
-        this.$emit('post-edited', updatedPost);
-        this.showOptions = false;
-      } catch (e) {
-        console.error('Error updating post', e);
-      }
-    },
-    async deletePost() {
-      if (!confirm('Are you sure you want to delete this post?')) return;
-      try {
-        await apiClient.delete(`/posts/${this.post.id}`);
-        this.$emit('post-deleted', this.post.id);
-      } catch (e) {
-        console.error('Error deleting post', e);
-      }
-    },
+
+async editPost() {
+  this.isEditing = true;
+  this.editDescription = this.post.description || '';
+}
+,
+async saveEdit() {
+  const text = (this.editDescription ?? '').trim();
+  const limit = Number(this.descLimit) || 250;
+
+  if (text.length === 0) {
+    alert('Description cannot be empty.');
+    return;
+  }
+  if (text.length > limit) {
+    alert(`Description cannot exceed ${limit} characters.`);
+    return;
+  }
+
+  try {
+    const updatedPost = { ...this.post, description: text };
+    await apiClient.put(`/posts/${this.post.id}`, updatedPost);
+    this.$emit('post-edited', updatedPost);
+    this.closeModal();
+  } catch (e) {
+    if (e.response && e.response.status === 500) {
+      alert(`Description cannot exceed ${limit} characters.`);
+    } else if (e.response?.data?.message) {
+      alert(e.response.data.message);
+    } else {
+      alert('Failed to update post. Please try again.');
+    }
+    console.error('Error updating post', e);
+  }
+},
+
+async deletePost() {
+  if (!confirm('Are you sure you want to delete this post?')) return;
+  try {
+    await apiClient.delete(`/posts/${this.post.id}`);
+    this.$emit('post-deleted', this.post.id);
+  } catch (e) {
+    console.error('Error deleting post', e);
+  }
+},
     alertUser() {
       this.$emit('alert-user');
     },
@@ -347,6 +416,9 @@ export default {
   padding: 1rem;
   font-size: 1rem;
   line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;  
 }
 
 .comments-list {
@@ -356,6 +428,16 @@ export default {
 .comment {
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  display: block;
+}
+
+.comment strong {
+  display: inline;
+  margin-right: 0.3rem;
+  white-space: nowrap;
 }
 
 .comment-input {
@@ -452,4 +534,76 @@ export default {
   align-items: center;
   gap: 1.5rem;
 }
+
+.comment-input small { 
+  opacity: .7; 
+}
+
+.comment-input small.danger { 
+  color: #ce361f; opacity: 1; font-weight: bold; 
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(230, 236, 229, 0.7) !important; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.modal {
+  width: 400px; 
+  max-height: 400px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+  font-family: 'Delius Swash Caps', cursive;
+  color: #4a4a4a;
+}
+.modal-title { 
+  margin: 0 0 .5rem; 
+}
+
+.modal-textarea {
+  width: 100%;
+  min-height: 140px;
+  border: 1px solid #c9d6c8;
+  border-radius: 6px;
+  padding: .6rem .7rem;
+  resize: vertical;
+  font-family: 'Delius Swash Caps', cursive;
+}
+
+.modal-footer {
+  margin-top: .6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-actions {
+  display: flex;
+  gap: .5rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  border: none;
+  padding: .45rem .9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Delius Swash Caps', cursive;
+}
+.btn-primary { background: #ec5d43; color: #fff; }
+.btn-primary:hover { background: #c94530; }
+.btn-secondary { background: #e6ece5; color: #4a4a4a; }
+
+.danger {
+  color: #ce361f;
+  font-weight: bold;
+}
+
 </style>
