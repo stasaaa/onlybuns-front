@@ -108,7 +108,6 @@
             @post-updated="refreshPosts"
             @post-edited="updatePost"
             @post-deleted="removePost"
-            @alert-user="showLoginAlert"
           />
         </div>
         <div v-else>
@@ -229,6 +228,15 @@ const usersProfile = ref(false);
 const isFollowing = ref(false);
 const followLoading = ref(false);
 
+const updatePost = (updatedPost) => {
+  const index = posts.value.findIndex((p) => p.id === updatedPost.id);
+  if (index !== -1) posts.value[index] = updatedPost;
+};
+
+const removePost = (postId) => {
+  posts.value = posts.value.filter((p) => p.id !== postId);
+};
+
 function getComments() {
   apiClient.get(`/comments/user/${profileUser.value.id}`)
   .then((response) => {
@@ -240,6 +248,10 @@ function getComments() {
     console.log('BBBBBBBBBBBB')
     console.log(error)
   })
+}
+
+function refreshPosts() {
+  getPosts()
 }
 
 function changeToComments() {
@@ -369,9 +381,34 @@ const followLoadingMap = reactive({});
 
 async function getPosts() {
   apiClient.get(`/posts/user/${profileUser.value.id}`)
-  .then((response) => {
+  .then(async (response) => {
     posts.value = response.data
     console.log(posts.value)
+
+    for (const post of posts.value) {
+      try {
+        const userRes = await apiClient.get(`users/findUsername/${post.userId}`);
+        post.username = userRes.data;
+      } catch {
+        post.username = 'Unknown User';
+      }
+
+      try {
+        const commentsRes = await apiClient.get(`comments/${post.id}`);
+        const comments = commentsRes.data;
+        for (const comment of comments) {
+          try {
+            const userRes = await apiClient.get(`users/findUsername/${comment.userId}`);
+            comment.username = userRes.data;
+          } catch {
+            comment.username = 'Unknown User';
+          }
+        }
+        post.comments = comments.sort((a, b) => new Date(b.creationTime) - new Date(a.creationTime));
+      } catch {
+        post.comments = [];
+      }
+    }
   })
   .catch((error) => {
     alert(error)
