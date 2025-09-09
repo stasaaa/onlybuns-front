@@ -58,17 +58,17 @@
           </div>
 
           <div class="buttons">
-            <button class="button">
+            <button class="button" @click="changeToPosts">
               <img :src="bunnyImage" class="barIcon" /> Bunnies Located
             </button>
-            <button class="button">
+            <button class="button" @click="changeToComments">
               <font-awesome-icon
                 class="commentIcon"
                 :icon="['fas', 'comment']"
               />
               Comments
             </button>
-            <button class="button">
+            <button class="button" @click="changeToUserLocation">
               <font-awesome-icon :icon="['fas', 'map-location-dot']" /> User's
               Location
             </button>
@@ -98,7 +98,7 @@
         </div>
       </div>
 
-      <div v-if="showComments">
+      <div v-if="showComments == 'POST'">
         <div class="content" v-if="posts.length">
           <PostComponent
             v-for="post in posts"
@@ -115,19 +115,27 @@
           <p>No Posts</p>
         </div>
       </div>
-      <div v-else>
+      <div v-else-if="showComments == 'COMMENT'">
         <div class="comments">
-          <!-- v-for="comment in comments"
-          :key="comment.id"> -->
-          <div class="comment">
+          <div class="comment" v-for="comment in comments" :key="comment.id">
             <div class="comment-info">
-              <p>Username</p>
-              <p>Creation Time</p>
+              <p>{{ profileUser.username }}</p>
+              <p>{{ comment.creationTime }}</p>
             </div>
             <div>
-              <p>Description</p>
+              <p>{{ comment.content }}</p>
             </div>
           </div>
+        </div>
+      </div>
+      <div v-else>
+        <div class="map">
+          <MapComponent ref="mapRef"
+                        :changeUserLocation="false"
+                        :userLocation="[profileUser.address.latitude, profileUser.address.longitude]"
+                        :showUserLocation="true"
+                        :multipleBunnies="false" 
+                        :disableClick="true"/>
         </div>
       </div>
     </div>
@@ -221,6 +229,32 @@ const usersProfile = ref(false);
 const isFollowing = ref(false);
 const followLoading = ref(false);
 
+function getComments() {
+  apiClient.get(`/comments/user/${profileUser.value.id}`)
+  .then((response) => {
+    console.log('AAAAAAAAAAAA')
+    console.log(response)
+    comments.value = response.data
+  })
+  .catch((error) => {
+    console.log('BBBBBBBBBBBB')
+    console.log(error)
+  })
+}
+
+function changeToComments() {
+  showComments.value = 'COMMENT'
+  getComments();
+}
+
+function changeToPosts() {
+  showComments.value = 'POST'
+}
+
+function changeToUserLocation() {
+  showComments.value = 'MAP'
+}
+
 const profileStats = ref({
   postsCount: 0,
   followersCount: 0,
@@ -246,8 +280,8 @@ const passwordEdit = ref({
 
 const errorMsg = ref("")
 
-const showComments = ref(false)
-// const comments = ref([])
+const showComments = ref('POST')
+const comments = ref([])
 
 watch(
   username,
@@ -290,6 +324,7 @@ watch(
 
       await loadProfileStats();
       await getPosts();
+      await getComments();
 
       if (!usersProfile.value) {
         await checkFollowStatus();
@@ -327,6 +362,7 @@ function closeFollowingDialog() {
 }
 
 import { reactive } from "vue";
+import MapComponent from "@/components/MapComponent.vue";
 
 const isFollowingMap = reactive({});
 const followLoadingMap = reactive({});

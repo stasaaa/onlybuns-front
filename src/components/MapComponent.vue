@@ -129,7 +129,9 @@ export default {
         });
       } else {
         this.map.on("click", (event) => {
-          this.handleMapClick(event);
+          if(!this.disableClick) {
+            this.handleMapClick(event);
+          }
         });
       }
     },
