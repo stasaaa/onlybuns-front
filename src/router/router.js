@@ -58,8 +58,7 @@ const routes = [
   {
     path: "/profile",
     name: "UserProfile",
-    component: UserProfile,
-    meta: {requiresAuth: true}
+    component: UserProfile
   },
   {
     path: '/trends',

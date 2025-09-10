@@ -79,6 +79,7 @@
               class="action-button follow-button"
               :class="{ following: isFollowing }"
               :disabled="followLoading"
+              :hidden="user.id == -1"
               @click="toggleFollow"
             >
               {{ isFollowing ? "Unfollow" : "Follow" }}
@@ -108,6 +109,7 @@
             @post-updated="refreshPosts"
             @post-edited="updatePost"
             @post-deleted="removePost"
+            @alert-user="showLoginAlert"
           />
         </div>
         <div v-else>
@@ -192,11 +194,22 @@
         <button @click="closeFollowingDialog">Close</button>
       </div>
     </div>
+
+    <CAlert
+      v-if="alertUserBool"
+      color="light"
+      id="alertUser"
+      @transitionend="onAlertTransitionEnd"
+    >
+      {{ errorMessage }}
+      <CAlertLink href="/login">login</CAlertLink> or
+      <CAlertLink href="/register">register</CAlertLink>.
+    </CAlert>
   </div>
 </template>
 
 <script setup>
-
+import { CAlert, CAlertLink } from '@coreui/vue';
 import bunnyImage from "@/assets/rabbit-marker.png";
 import apiClient from "@/axios/axios";
 import PostComponent from "@/components/Post.vue";
@@ -227,6 +240,25 @@ const usersProfile = ref(false);
 
 const isFollowing = ref(false);
 const followLoading = ref(false);
+
+const alertUserBool = ref(false);
+const alertFadeOut = ref(false);
+const errorMessage = ref('To leave a like or comment, please ');
+
+const showLoginAlert = () => {
+  alertUserBool.value = true;
+  setTimeout(() => {
+    alertFadeOut.value = true;
+    onAlertTransitionEnd();
+  }, 3000);
+};
+
+const onAlertTransitionEnd = () => {
+  if (alertFadeOut.value) {
+    alertFadeOut.value = false;
+    alertUserBool.value = false;
+  }
+};
 
 const updatePost = (updatedPost) => {
   const index = posts.value.findIndex((p) => p.id === updatedPost.id);
@@ -484,8 +516,8 @@ async function loadProfileStats() {
     );
     profileStats.value.followingCount = followingRes.data.count ?? 0;
 
-    const postsRes = await apiClient.get(`/users/${encoded}/posts/count`);
-    profileStats.value.postsCount = postsRes.data ?? 0;
+    // const postsRes = await apiClient.get(`/users/${encoded}/posts/count`);
+    // profileStats.value.postsCount = postsRes.data ?? 0;
   } catch (error) {
     console.error("Error loading profile stats:", error);
   }
@@ -957,6 +989,17 @@ function cancel() {
 .comment-info {
   display: flex;
   justify-content: space-evenly;
+}
+
+#alertUser {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
+  -webkit-animation: fadeIn 3s linear forwards;
+  animation: fadeIn 3s linear forwards;
 }
 
 /* Responsive */
