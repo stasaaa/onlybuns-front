@@ -317,6 +317,12 @@ export default {
       selectedUsersToAdd: [],
 
       apiBaseUrl: "http://localhost:8080",
+
+    
+
+
+
+      sidebarReloadInterval: null,
     };
   },
 
@@ -369,25 +375,38 @@ export default {
       }
     },
 
-    userGroups(newGroups, oldGroups) {
-      const newGroup = newGroups.find(
-        g => !oldGroups.some(og => og.id === g.id)
-      );
-
-      if (newGroup) {
-        this.selectGroup(newGroup);
-      }
+ watch: {
+  userGroups(newGroups) {
+   
+    if (this.selectedGroup && !newGroups.some(g => g.id === this.selectedGroup.id)) {
+      this.selectedGroup = null;
+      this.messages = [];
     }
+  }
+}
+
   },
 
   async mounted() {
     await this.loadInitialData();
     this.connectUserGroupsWebSocket();
+
+    this.sidebarReloadInterval = setInterval(() => {
+      if (this.currentUserId) {
+        this.fetchUserGroups();
+      }
+    }, 1000);
   },
 
   beforeUnmount() {
     this.disconnectWebSocket();
     if (this.userGroupsClient) this.userGroupsClient.deactivate();
+
+    
+    if (this.sidebarReloadInterval) {
+      clearInterval(this.sidebarReloadInterval);
+      this.sidebarReloadInterval = null;
+    }
   },
 
   methods: {
@@ -497,21 +516,34 @@ export default {
       this.stompClient.activate();
     },
 
-    connectUserGroupsWebSocket() {
-      this.userGroupsClient = new Client({
-        webSocketFactory: () => new SockJS(`${this.apiBaseUrl}/ws`),
-        onConnect: () => {
-          this.userGroupsClient.subscribe(`/user/${this.currentUserId}/queue/groups`, (message) => {
-            const newGroup = JSON.parse(message.body);
-            if (!this.userGroups.find(g => g.id === newGroup.id)) {
-              this.userGroups.push(newGroup);
-            }
-          });
+   connectUserGroupsWebSocket() {
+  this.userGroupsClient = new Client({
+    webSocketFactory: () => new SockJS(`${this.apiBaseUrl}/ws`),
+    onConnect: () => {
+      this.userGroupsClient.subscribe(`/user/${this.currentUserId}/queue/groups`, (message) => {
+        const update = JSON.parse(message.body);
+
+        if (update.type === 'NEW_GROUP') {
+          if (!this.userGroups.find(g => g.id === update.group.id)) {
+            this.userGroups.push(update.group);
+          }
+        }
+
+        if (update.type === 'REMOVED_FROM_GROUP') {
+          const groupId = update.groupId;
+          this.userGroups = this.userGroups.filter(g => g.id !== groupId);
+
+          if (this.selectedGroup?.id === groupId) {
+            this.selectedGroup = null;
+            this.messages = [];
+            alert("You have been removed from this group.");
+          }
         }
       });
-      this.userGroupsClient.activate();
-    },
-
+    }
+  });
+  this.userGroupsClient.activate();
+},
     unsubscribe() {
       if (this.subscription) {
         this.subscription.unsubscribe();
@@ -528,16 +560,22 @@ export default {
       this.isConnected = false;
     },
 
-    sendMessage() {
-      if (!this.newMessage.trim() || !this.isConnected || !this.selectedGroup) return;
+ sendMessage() {
+  const isMember = this.selectedGroup?.members?.some(m => m.id === this.currentUserId);
+  if (!isMember) {
+    alert("You can't send messages, you've been removed from this group.");
+    return;
+  }
 
-      const messageData = { content: this.newMessage.trim(), senderUsername: this.currentUsername };
-      this.stompClient.publish({ destination: `/app/chat/${this.selectedGroup.id}`, body: JSON.stringify(messageData) });
+  if (!this.newMessage.trim() || !this.isConnected || !this.selectedGroup) return;
 
-      this.messages.push({ ...messageData, timestamp: new Date().toISOString() });
-      this.$nextTick(() => this.scrollToBottom());
-      this.newMessage = "";
-    },
+  const messageData = { content: this.newMessage.trim(), senderUsername: this.currentUsername };
+  this.stompClient.publish({ destination: `/app/chat/${this.selectedGroup.id}`, body: JSON.stringify(messageData) });
+
+  this.messages.push({ ...messageData, timestamp: new Date().toISOString() });
+  this.$nextTick(() => this.scrollToBottom());
+  this.newMessage = "";
+},
 
     async createGroup() {
       if (!this.canCreateGroup) return;
@@ -558,44 +596,59 @@ export default {
       }
     },
 
-    // --- REFRAKTOROVANO ZA REAL-TIME ---
-    async addMember(userId) {
-      if (!this.selectedGroup) return;
-      try {
-        const res = await fetch(`${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/add-member?userId=${userId}&adminUsername=${this.currentUsername}`, { method: "PUT" });
-        if (res.ok) {
-          const addedUser = this.allUsers.find(u => u.id === userId);
-          if (addedUser) this.selectedGroup.members.push(addedUser);
-          this.selectedUsersToAdd = this.selectedUsersToAdd.filter(id => id !== userId);
-        }
-      } catch (error) {
-        console.error("Error adding member:", error);
-      }
-    },
+  async addMember(userId) {
+  if (!this.selectedGroup) return;
+  try {
+    const res = await fetch(
+      `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/add-member?userId=${userId}&adminUsername=${this.currentUsername}`,
+      { method: "PUT" }
+    );
 
-    async addSelectedMembers() {
-      if (!this.selectedGroup || this.selectedUsersToAdd.length === 0) return;
-      try {
-        for (const userId of [...this.selectedUsersToAdd]) {
-          await this.addMember(userId);
-        }
-        this.closeAddMembersModal();
-      } catch (error) {
-        console.error("Error adding selected members:", error);
+    if (res.ok) {
+      const addedUser = this.allUsers.find(u => u.id === userId);
+      if (addedUser) this.selectedGroup.members.push(addedUser);
+      this.selectedUsersToAdd = this.selectedUsersToAdd.filter(id => id !== userId);
+    } else {
+      const errorMsg = await res.text();
+      if (errorMsg) {
+        alert("You are not the admin!");
       }
-    },
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Network or server error while adding member!");
+  }
+},
 
-    async removeMember(userId) {
-      if (!this.selectedGroup) return;
-      try {
-        const res = await fetch(`${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/remove-member?userId=${userId}&adminUsername=${this.currentUsername}`, { method: "PUT" });
-        if (res.ok) {
-          this.selectedGroup.members = this.selectedGroup.members.filter(m => m.id !== userId);
-        }
-      } catch (error) {
-        console.error("Error removing member:", error);
+async addSelectedMembers() {
+  for (const id of [...this.selectedUsersToAdd]) {
+    await this.addMember(id);
+  }
+  this.closeAddMembersModal();
+},
+
+
+async removeMember(userId) {
+  if (!this.selectedGroup) return;
+  try {
+    const res = await fetch(
+      `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/remove-member?userId=${userId}&adminUsername=${this.currentUsername}`,
+      { method: "PUT" }
+    );
+
+    if (res.ok) {
+      this.selectedGroup.members = this.selectedGroup.members.filter(m => m.id !== userId);
+    } else {
+      const errorMsg = await res.text();
+      if (errorMsg) {
+        alert("You are not the admin!");
       }
-    },
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Network or server error while removing member!");
+  }
+},
 
     openCreateGroupModal() { this.showCreateGroupModal = true; },
     closeCreateGroupModal() { this.showCreateGroupModal = false; this.newGroupName = ""; this.selectedUserIds = []; },
