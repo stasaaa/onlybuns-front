@@ -416,6 +416,7 @@ async function getPosts() {
 }
 
 async function updateFollowStatusForList(users) {
+  console.log(users)
   for (const u of users) {
     try {
       const encoded = encodeURIComponent(u.username);
@@ -430,7 +431,7 @@ async function updateFollowStatusForList(users) {
 }
 
 
-async function loadFollowers() {
+function loadFollowers() {
   if (followersLoading.value) return;
   if (!username.value) {
     followersList.value = [];
@@ -439,13 +440,14 @@ async function loadFollowers() {
   }
   followersLoading.value = true;
   try {
-    const response = await apiClient.get(`/following/${profileUser.value.username}/followers`);
-    followersList.value = response.data;
-    await updateFollowStatusForList(followersList.value);
+    apiClient.get(`/following/${profileUser.value.username}/followers`)
+    .then(async (response) => {
+      followersList.value = response.data;
+      await updateFollowStatusForList(followersList.value);
+      followersLoading.value = false;
+    });
   } catch (error) {
     followersList.value = [];
-  } finally {
-    followersLoading.value = false;
   }
 }
 

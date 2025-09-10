@@ -29,9 +29,9 @@
         :post="post"
         :userId="user.id"
         :followed-users-ids="followedUsersIds"
-        @post-updated="refreshFivePosts"
-        @post-edited="updateFivePost"
-        @post-deleted="removeFivePost"
+        @post-updated="refreshTenPosts"
+        @post-edited="updateTenPost"
+        @post-deleted="removeTenPost"
       />
     </div>
 
@@ -70,6 +70,39 @@ onMounted(() => {
   getTenPosts()
   getTopUsers()
 })
+
+const refreshFivePosts = () => {
+  getFivePosts()
+  getTopUsers()
+}
+
+const updateFivePost = (updatedPost) => {
+  const index = fivePosts.value.findIndex((p) => p.id === updatedPost.id);
+  if (index !== -1) fivePosts.value[index] = updatedPost;
+  getTopUsers()
+};
+
+const removeFivePost = (postId) => {
+  fivePosts.value = fivePosts.value.filter((p) => p.id !== postId);
+  getTopUsers()
+};
+
+const refreshTenPosts = () => {
+  getTenPosts()
+  getTopUsers()
+}
+
+const updateTenPost = (updatedPost) => {
+  const index = tenPosts.value.findIndex((p) => p.id === updatedPost.id);
+  if (index !== -1) tenPosts.value[index] = updatedPost;
+  getTopUsers()
+};
+
+const removeTenPost = (postId) => {
+  tenPosts.value = tenPosts.value.filter((p) => p.id !== postId);
+  getTopUsers()
+};
+
 
 function getCounts() {
   apiClient.get('/posts/post-quantity')
