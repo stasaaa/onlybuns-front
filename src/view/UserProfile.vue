@@ -74,7 +74,7 @@
             </button>
           </div>
 
-          <div v-if="!usersProfile" class="follow-button-container">
+          <div v-if="!usersProfile && user.userRole !== ''" class="follow-button-container">
             <button
               class="action-button follow-button"
               :class="{ following: isFollowing }"
@@ -405,8 +405,8 @@ function closeFollowingDialog() {
   followingList.value = [];
 }
 
-import { reactive } from "vue";
 import MapComponent from "@/components/MapComponent.vue";
+import { reactive } from "vue";
 
 const isFollowingMap = reactive({});
 const followLoadingMap = reactive({});
