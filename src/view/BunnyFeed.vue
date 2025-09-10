@@ -205,4 +205,15 @@ h2 {
   border-top: 1px dashed #c9d6c8;
   margin-bottom: 1rem;
 }
+
+#alertUser {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
+  -webkit-animation: fadeIn 3s linear forwards;
+  animation: fadeIn 3s linear forwards;
+}
 </style>
