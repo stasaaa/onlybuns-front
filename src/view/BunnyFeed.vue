@@ -47,13 +47,14 @@ const followedUsersIds = ref([]);
 const fetchFollowedUsersIds = async () => {
   if (user.value && user.value.id !== -1) {
     try {
-      const response = await apiClient.get("/users/me/followed-ids");
-      followedUsersIds.value = response.data;
+      const response = await apiClient.get(`/following/${user.value.username}/followed`);
+      followedUsersIds.value = response.data.map(u => u.id);
     } catch (error) {
       console.error("Failed to fetch followed users", error);
     }
   }
 };
+
 
 const loadPosts = async () => {
   try {
