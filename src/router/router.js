@@ -11,6 +11,7 @@ import RegisteredUsers from '@/view/RegisteredUsers.vue';
 import RegisterUser from '@/view/RegisterUser.vue';
 import TrendingPage from '@/view/TrendingPage.vue';
 import UserProfile from '@/view/UserProfile.vue';
+import AdvertisePosts from "@/view/AdvertisePosts.vue";
 import { createRouter, createWebHistory } from 'vue-router';
 import { useStore } from 'vuex';
 
@@ -92,6 +93,12 @@ const routes = [
     name: "ChatPage",
     component: ChatPage,
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/advertise-posts',
+    name: 'AdvertisePosts',
+    component: AdvertisePosts,
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
 
 ];

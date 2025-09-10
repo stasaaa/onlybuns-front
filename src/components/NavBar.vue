@@ -21,6 +21,7 @@
                 <CDropdownItem v-if="!isAdmin" href="/createPost">Create Post</CDropdownItem>
                 <CDropdownItem v-if="!isAdmin" href="/near-me">Near Me</CDropdownItem>
                 <CDropdownItem v-if="isAdmin" href="/all-posts">All Posts</CDropdownItem>
+                <CDropdownItem v-if="isAdmin" href="/advertise-posts">Advertise Posts</CDropdownItem>
               </CDropdownMenu>
             </CDropdown>
 
