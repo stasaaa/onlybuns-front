@@ -310,6 +310,10 @@ async deletePost() {
       this.$router.push({ name: 'UserProfile', query: { username } });
     },
     focusCommentInput() {
+      if (this.userId === -1) {
+        this.alertUser();
+        return;
+      }
       this.$refs.commentInput.focus();
     }
   }

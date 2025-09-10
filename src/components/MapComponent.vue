@@ -10,8 +10,9 @@ import bunnyImage from "@/assets/bunny-hide.gif";
 import userPin from "@/assets/user-pin.png";
 import 'leaflet-control-geocoder/dist/Control.Geocoder.css';
 import 'leaflet-control-geocoder';
+import vet from '@/assets/rabbit.png'
+import { toRaw } from 'vue';
 
-// Fix for missing default marker icon in Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: bunnyImage,
@@ -22,10 +23,17 @@ L.Icon.Default.mergeOptions({
 });
 
 const specialIcon = L.icon({
-  iconUrl: userPin, // Path to your custom icon
-  iconSize: [50, 50],  // Adjust size if needed
-  iconAnchor: [25, 50],  // Adjust anchor point if needed
+  iconUrl: userPin,
+  iconSize: [50, 50],
+  iconAnchor: [25, 50],
 });
+
+const vetIcon = L.icon({
+  iconUrl: vet,
+  iconSize: [50, 50],
+  iconAnchor: [25, 50], 
+})
+
 
 export default {
   name: "MapComponent",
@@ -41,11 +49,10 @@ export default {
     userLocation: {
       type: Array,
       required() {
-        return this.showUserLocation; // Make userLocation required if showUserLocation is true
+        return this.showUserLocation;
       },
       validator(value) {
-        // You can add additional validation if needed, like checking if the array has two elements (latitude and longitude)
-        return value && value.length === 2; // Example: Ensure it's an array with two values
+        return value && value.length === 2;
       },
     },
     changeUserLocation: {
@@ -58,15 +65,23 @@ export default {
     },
     multipleLocations: {
       type: Array
+    },
+    showRabbitCareLocations: {
+      type: Boolean,
+      default: false
+    },
+    rabbitCareLocations: {
+      type: Array
     }
   },
   data() {
     return {
       map: null,
-      latlng: [45.2502, 19.8335], // Default coordinates for Novi Sad
-      marker: null, // To keep track of the marker
+      latlng: [45.2502, 19.8335],
+      marker: null,
       userMarker: null,
       bunniesMarker: null,
+      vetMarkers: [],
       address: {
         city: "",
         country: "",
@@ -78,7 +93,6 @@ export default {
   },
   methods: {
     initMap() {
-      // Initialize the map
       if(this.showUserLocation) {
         this.latlng = this.userLocation;
       }
@@ -92,7 +106,6 @@ export default {
         boxZoom: true,
       });
 
-      // Add tile layer to map
       L.tileLayer("http://{s}.tile.osm.org/{z}/{x}/{y}.png", {
         attribution:
           '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
@@ -104,15 +117,13 @@ export default {
         }).addTo(this.map);
 
         if(!this.showUserLocation) {
-          // Handle geocoder search results
           geocoder.on("markgeocode", (e) => {
-            const { center } = e.geocode; // Get lat, lng from geocode result
+            const { center } = e.geocode;
             this.setMarker(center.lat, center.lng);
           });
         } else {
-          // Handle geocoder search results
           geocoder.on("markgeocode", (e) => {
-            const { center } = e.geocode; // Get lat, lng from geocode result
+            const { center } = e.geocode;
             this.setMarkerUserLocation(center.lat, center.lng);
           });
         }
@@ -129,8 +140,29 @@ export default {
         });
       } else {
         this.map.on("click", (event) => {
-          this.handleMapClick(event);
+          if(!this.disableClick) {
+            this.handleMapClick(event);
+          }
         });
+      }
+    },
+    showRabbitCare() {
+      if (!this.rabbitCareLocations || this.rabbitCareLocations.length === 0) return;
+      
+      toRaw(this.vetMarkers)?.forEach(marker => marker.remove());
+      this.vetMarkers = [];
+
+      for (const location of this.rabbitCareLocations) {
+        const popup = L.popup().setContent(`<b>${location.name}</b>`);
+
+        const vetMarker = L.marker([location.latitude, location.longitude], {icon: vetIcon})
+          .addTo(toRaw(this.map));
+
+        vetMarker.on('click', () => {
+          popup.setLatLng(vetMarker.getLatLng()).openOn(toRaw(this.map));
+        });
+
+        this.vetMarkers.push(vetMarker);
       }
     },
     showMultipleBunnies() {
@@ -145,7 +177,8 @@ export default {
       for (const location of this.multipleLocations) {
 
         // Create a marker for each bunny location
-        const bunnyMarker = L.marker([location.address.latitude, location.address.longitude]).addTo(this.map);
+        const bunnyMarker = L.marker([location.address.latitude, location.address.longitude])
+          .addTo(this.map);
 
         // Push the marker into the bunniesMarker array for later reference
         this.bunniesMarker.push(bunnyMarker);
@@ -276,6 +309,17 @@ export default {
       this.map.remove();
     }
   },
+  watch: {
+    rabbitCareLocations: {
+      handler(newVal) {
+        if (newVal?.length && this.map) {
+          this.showRabbitCare();
+        }
+      },
+      deep: true,
+      immediate: true
+    }
+  }
 };
 </script>
 

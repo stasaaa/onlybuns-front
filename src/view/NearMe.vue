@@ -7,47 +7,21 @@
                         :showUserLocation="true"
                         :multipleBunnies="true"
                         :multipleLocations="posts"
+                        :showRabbitCareLocations="true"
+                        :rabbitCareLocations="rabbitCareLocations"
                         @map-clicked="handleMapData"/>
         </div>
         <div class="posts" v-if="hasPosts">
             <div class="posts-grid">
-                <CCard 
-                v-for="post in posts" 
-                :key="post.id" 
-                class="post-card"
-                >
-                <CCardImage 
-                    v-if="post.image" 
-                    orientation="top" 
-                    :src="'data:image/jpeg;base64,' + post.image"
-                    class="post-image" 
-                />
-                <div class="interaction-buttons">
-                    <button class="interaction-btn" v-on:click="toggleLike(post)">
-                    <font-awesome-icon :icon="['fas', 'carrot']" class="carrot-icon" />
-                    <span>{{ post.likes }}</span> <!-- Display likes count -->
-                    </button>
-                    <button class="interaction-btn" v-on:click="alertUser()">
-                    <font-awesome-icon :icon="['fas', 'comment']" />
-                    <span>0</span>
-                    </button>
-                    <button class="interaction-btn" @click="togglePostOptions" v-if="post.userId === user.id">
-                    <font-awesome-icon :icon="['fas', 'ellipsis-h']" />
-                    <div class="post-options" v-if="showPostOptions">
-                        <button class="post-option" @click="editPost(post)">Edit Post</button>
-                        <button class="post-option" @click="deletePost(post.id)">Delete Post</button>
-                    </div>
-                    </button>
-                </div>
-                <CCardBody>
-                    <CNavLink v-on:click="goToAccount(post.username)" class="link">{{ post.username }}</CNavLink>
-                    <CCardText class="post-description">{{ post.description }}</CCardText>
-                    <div class="post-location" v-if="post.address">
-                    <font-awesome-icon :icon="['fas', 'location-dot']" />
-                    {{ post.address.city }}, {{ post.address.street }}
-                    </div>
-                </CCardBody>
-                </CCard>
+                <PostComponent
+                    v-for="post in posts"
+                    :key="post.id"
+                    :post="post"
+                    :userId="user.id"
+                    @post-updated="refreshPosts"
+                    @post-edited="updatePost"
+                    @post-deleted="removePost"
+                  />
             </div>
         </div>
         <div class="no-posts" v-else>
@@ -61,6 +35,7 @@ import apiClient from '@/axios/axios';
 import MapComponent from '@/components/MapComponent.vue';
 import { onMounted, ref, computed, watch, nextTick } from 'vue';
 import { useStore } from 'vuex';
+import PostComponent from "@/components/Post.vue";
 
 const mapRef = ref(null);
 
@@ -106,11 +81,33 @@ const pageSize = ref(10);
 const posts = ref([]);
 const hasPosts = computed (() => posts.value.length > 0);
 
+const rabbitCareLocations = ref([]);
+
 onMounted(async () => {
   await nextTick();
   getPosts();
-  // getPosts();
+  getRabbitCareLocations()
 })
+
+function refreshPosts() {
+  getPosts()
+}
+
+function getRabbitCareLocations() {
+  apiClient.get('/api/rabbit-care')
+  .then((response) => {
+    console.log("----------RABBIT CARE LOCATION------------")
+    console.log(response.data)
+    rabbitCareLocations.value = response.data
+
+    if (mapRef.value && mapRef.value.showRabbitCareLocations) {
+      mapRef.value.showRabbitCare();
+    }
+  })
+  .catch((error) => {
+    console.log(error)
+  })
+}
 
 function getPosts() {
     apiClient.get(`posts/near-me`, 
@@ -121,7 +118,7 @@ function getPosts() {
             pageSize: pageSize.value
         }
     })
-    .then((response) => {
+    .then(async (response) => {
         posts.value = response.data;
 
         console.log("AAAAAAAAAA");
@@ -130,6 +127,31 @@ function getPosts() {
         console.log(posts.value)
         if (mapRef.value && mapRef.value.showMultipleBunnies) {
             mapRef.value.showMultipleBunnies();
+        }
+
+        for (const post of posts.value) {
+          try {
+            const userRes = await apiClient.get(`users/findUsername/${post.userId}`);
+            post.username = userRes.data;
+          } catch {
+            post.username = 'Unknown User';
+          }
+
+          try {
+            const commentsRes = await apiClient.get(`comments/${post.id}`);
+            const comments = commentsRes.data;
+            for (const comment of comments) {
+              try {
+                const userRes = await apiClient.get(`users/findUsername/${comment.userId}`);
+                comment.username = userRes.data;
+              } catch {
+                comment.username = 'Unknown User';
+              }
+            }
+            post.comments = comments.sort((a, b) => new Date(b.creationTime) - new Date(a.creationTime));
+          } catch {
+            post.comments = [];
+          }
         }
     })
     .catch((error) => {
