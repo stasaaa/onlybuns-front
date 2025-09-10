@@ -1,3 +1,4 @@
+
 <template>
   <div class="chat-page">
     <!-- Sidebar -->
@@ -286,7 +287,6 @@
     </div>
   </div>
 </template>
-
 <script>
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
@@ -324,16 +324,6 @@ export default {
     currentUser() {
       return this.$store.getters.getUser;
     },
-    
-    formattedMessages() {
-      return this.messages.map(message => {
-        const messageType = this.getMessageType(message);
-        return {
-          ...message,
-          messageType
-        };
-      });
-    },
 
     currentUserId() {
       return this.currentUser?.id || null;
@@ -343,23 +333,22 @@ export default {
       return this.currentUser?.username || "";
     },
 
+    formattedMessages() {
+      return this.messages.map(message => {
+        const messageType = this.getMessageType(message);
+        return { ...message, messageType };
+      });
+    },
+
     availableUsers() {
-      console.log('Computing availableUsers, allUsers:', this.allUsers, 'type:', typeof this.allUsers);
-      if (!Array.isArray(this.allUsers)) {
-        console.warn('allUsers is not an array:', this.allUsers);
-        return [];
-      }
-      return this.allUsers.filter((user) => user.id !== this.currentUserId);
+      if (!Array.isArray(this.allUsers)) return [];
+      return this.allUsers.filter((u) => u.id !== this.currentUserId);
     },
 
     nonGroupMembers() {
-      if (!this.selectedGroup || !Array.isArray(this.allUsers)) {
-        return [];
-      }
-      const memberIds = this.selectedGroup.members?.map((m) => m.id) || [];
-      return this.allUsers.filter(
-        (user) => user.id !== this.currentUserId && !memberIds.includes(user.id)
-      );
+      if (!this.selectedGroup || !Array.isArray(this.allUsers)) return [];
+      const memberIds = this.selectedGroup.members?.map(m => m.id) || [];
+      return this.allUsers.filter(u => u.id !== this.currentUserId && !memberIds.includes(u.id));
     },
 
     canCreateGroup() {
@@ -368,73 +357,47 @@ export default {
 
     isCurrentUserAdmin() {
       if (!this.selectedGroup || !this.currentUserId) return false;
-      
-      console.log("Selected group:", this.selectedGroup);
-      console.log("Current user ID:", this.currentUserId);
-      console.log("Group admin:", this.selectedGroup.admin);
-      
       return this.selectedGroup.admin?.id === this.currentUserId;
-    },
+    }
   },
 
   watch: {
-    allUsers: {
-      immediate: true,
-      handler(newValue) {
-        console.log('allUsers changed:', newValue, 'is array:', Array.isArray(newValue));
-        if (newValue !== null && !Array.isArray(newValue)) {
-          console.error('allUsers should be an array, got:', typeof newValue, newValue);
-          this.allUsers = [];
-        }
-      }
-    },
-    
     currentUserId: {
       immediate: true,
-      handler(newValue) {
-        console.log('currentUserId changed:', newValue);
-        if (newValue && this.allUsers.length === 0) {
-          this.fetchAllUsers();
-        }
+      handler(newVal) {
+        if (newVal && this.allUsers.length === 0) this.fetchAllUsers();
+      }
+    },
+
+    userGroups(newGroups, oldGroups) {
+      const newGroup = newGroups.find(
+        g => !oldGroups.some(og => og.id === g.id)
+      );
+
+      if (newGroup) {
+        this.selectGroup(newGroup);
       }
     }
   },
 
   async mounted() {
     await this.loadInitialData();
+    this.connectUserGroupsWebSocket();
   },
 
   beforeUnmount() {
     this.disconnectWebSocket();
+    if (this.userGroupsClient) this.userGroupsClient.deactivate();
   },
 
   methods: {
-    // Debug metoda
-    debugState() {
-      console.log('=== DEBUG STATE ===');
-      console.log('currentUser:', this.currentUser);
-      console.log('currentUserId:', this.currentUserId);
-      console.log('allUsers:', this.allUsers);
-      console.log('allUsers type:', typeof this.allUsers);
-      console.log('allUsers is array:', Array.isArray(this.allUsers));
-      console.log('availableUsers computed:', this.availableUsers);
-      console.log('showCreateGroupModal:', this.showCreateGroupModal);
-      console.log('==================');
-    },
-
     async loadInitialData() {
       try {
-        console.log('Loading initial data...');
-        console.log('Current user ID:', this.currentUserId);
-        
         if (!this.currentUserId) {
-          console.warn('currentUserId is not available yet, retrying...');
           setTimeout(() => this.loadInitialData(), 100);
           return;
         }
-        
         await Promise.all([this.fetchUserGroups(), this.fetchAllUsers()]);
-        console.log('Initial data loaded successfully');
       } catch (error) {
         console.error("Failed to load initial data:", error);
       }
@@ -442,12 +405,8 @@ export default {
 
     async fetchUserGroups() {
       try {
-        const response = await fetch(
-          `${this.apiBaseUrl}/group-chat/user/${this.currentUserId}`
-        );
-        if (response.ok) {
-          this.userGroups = await response.json();
-        }
+        const res = await fetch(`${this.apiBaseUrl}/group-chat/user/${this.currentUserId}`);
+        if (res.ok) this.userGroups = await res.json();
       } catch (error) {
         console.error("Error fetching user groups:", error);
       }
@@ -455,118 +414,59 @@ export default {
 
     async fetchAllUsers() {
       try {
-        console.log('Fetching all users for currentUserId:', this.currentUserId);
-        const response = await fetch(`${this.apiBaseUrl}/users/all?currentUserId=${this.currentUserId}`);
-        
-        if (response.ok) {
-          const users = await response.json();
-          console.log('API response:', users);
-          
-          if (Array.isArray(users)) {
-            this.allUsers = users;
-            console.log('Loaded users:', users.length, 'users');
-          } else {
-            console.error('API did not return an array:', users);
-            this.allUsers = [];
-          }
-        } else {
-          console.error('API response not ok:', response.status, response.statusText);
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const res = await fetch(`${this.apiBaseUrl}/users/all?currentUserId=${this.currentUserId}`);
+        if (res.ok) {
+          const users = await res.json();
+          this.allUsers = Array.isArray(users) ? users : [];
         }
       } catch (error) {
         console.error("Error fetching users:", error);
-        // Fallback test data
-        this.allUsers = [
-          { id: 1, username: "ana" },
-          { id: 2, username: "marko" },
-          { id: 3, username: "stefan" },
-          { id: 4, username: "milica" },
-        ];
-      }
-    },
-
-    async fetchMessages(groupId) {
-      try {
-        const response = await fetch(
-          `${this.apiBaseUrl}/group-chat/${groupId}/last-messages`
-        );
-        if (response.ok) {
-          this.messages = await response.json();
-          this.$nextTick(() => this.scrollToBottom());
-        }
-      } catch (error) {
-        console.error("Error fetching messages:", error);
+        this.allUsers = [];
       }
     },
 
     async fetchMessagesForUser(groupId, userId) {
-  try {
-    const response = await fetch(`${this.apiBaseUrl}/group-chat/${groupId}/messages/user/${userId}`);
-    if (response.ok) {
-      this.messages = await response.json();
-      this.$nextTick(() => this.scrollToBottom());
-    }
-  } catch (error) {
-    console.error("Error fetching messages for user:", error);
-  }
-},
+      try {
+        const res = await fetch(`${this.apiBaseUrl}/group-chat/${groupId}/messages/user/${userId}`);
+        if (res.ok) {
+          this.messages = await res.json();
+          this.$nextTick(() => this.scrollToBottom());
+        }
+      } catch (error) {
+        console.error("Error fetching messages for user:", error);
+      }
+    },
 
     async fetchGroupMembers(groupId) {
-  try {
-    const response = await fetch(`${this.apiBaseUrl}/group-chat/${groupId}/members`);
-    if (response.ok) {
-      const members = await response.json();
-      // Napravi shallow copy selectedGroup i dopuni members
-      this.selectedGroup = {
-        ...this.selectedGroup,
-        members,
-      };
-    } else {
-      console.error("Failed to fetch group members");
-      this.selectedGroup = {
-        ...this.selectedGroup,
-        members: [],
-      };
-    }
-  } catch (error) {
-    console.error("Error fetching group members:", error);
-    this.selectedGroup = {
-      ...this.selectedGroup,
-      members: [],
-    };
-  }
-}
-,
+      try {
+        const res = await fetch(`${this.apiBaseUrl}/group-chat/${groupId}/members`);
+        if (res.ok) {
+          const members = await res.json();
+          this.selectedGroup = { ...this.selectedGroup, members };
+        } else {
+          this.selectedGroup = { ...this.selectedGroup, members: [] };
+        }
+      } catch (error) {
+        console.error("Error fetching group members:", error);
+        this.selectedGroup = { ...this.selectedGroup, members: [] };
+      }
+    },
+
     selectGroup(group) {
-  if (this.selectedGroup?.id === group.id) return;
+      if (this.selectedGroup?.id === group.id) return;
 
-  console.log("Selecting group:", group);
-  this.selectedGroup = group;
-  this.messages = [];
+      this.selectedGroup = group;
+      this.messages = [];
+      if (!this.currentUserId) return;
 
-  if (!this.currentUserId) {
-    console.error("currentUserId is undefined, cannot fetch messages for user");
-    return;
-  }
+      this.fetchMessagesForUser(group.id, this.currentUserId);
+      this.connectToGroup(group.id);
+      this.fetchGroupMembers(group.id);
+    },
 
-  this.fetchMessagesForUser(group.id, this.currentUserId);
-  this.connectToGroup(group.id);
-  this.fetchGroupMembers(group.id);
-},
-
-    
     getMessageType(message) {
-      // System poruke
-      if (message.senderUsername === 'SYSTEM') {
-        return 'system';
-      }
-      
-      // Poruke trenutnog korisnika
-      if (message.senderUsername === this.currentUsername) {
-        return 'current-user';
-      }
-      
-      // Poruke drugih korisnika
+      if (message.senderUsername === 'SYSTEM') return 'system';
+      if (message.senderUsername === this.currentUsername) return 'current-user';
       return 'other-user';
     },
 
@@ -576,30 +476,40 @@ export default {
       this.stompClient = new Client({
         webSocketFactory: () => new SockJS(`${this.apiBaseUrl}/ws`),
         onConnect: () => {
-          console.log("Connected to WebSocket");
           this.isConnected = true;
-
           this.subscription = this.stompClient.subscribe(`/topic/group/${groupId}`, (message) => {
-            console.log("Stigla WS poruka:", message.body);
             const receivedMessage = JSON.parse(message.body);
             if (receivedMessage.senderUsername === this.currentUsername) return;
-
             receivedMessage.timestamp = new Date();
             this.messages.push(receivedMessage);
             this.$nextTick(() => this.scrollToBottom());
           });
         },
         onStompError: (frame) => {
-          console.error("WebSocket connection error:", frame);
+          console.error("WebSocket error:", frame);
           this.isConnected = false;
         },
         onDisconnect: () => {
-          console.log("Disconnected from WebSocket");
           this.isConnected = false;
         },
       });
 
       this.stompClient.activate();
+    },
+
+    connectUserGroupsWebSocket() {
+      this.userGroupsClient = new Client({
+        webSocketFactory: () => new SockJS(`${this.apiBaseUrl}/ws`),
+        onConnect: () => {
+          this.userGroupsClient.subscribe(`/user/${this.currentUserId}/queue/groups`, (message) => {
+            const newGroup = JSON.parse(message.body);
+            if (!this.userGroups.find(g => g.id === newGroup.id)) {
+              this.userGroups.push(newGroup);
+            }
+          });
+        }
+      });
+      this.userGroupsClient.activate();
     },
 
     unsubscribe() {
@@ -611,7 +521,6 @@ export default {
 
     disconnectWebSocket() {
       this.unsubscribe();
-
       if (this.stompClient) {
         this.stompClient.deactivate();
         this.stompClient = null;
@@ -620,26 +529,13 @@ export default {
     },
 
     sendMessage() {
-      if (!this.newMessage.trim() || !this.isConnected || !this.selectedGroup)
-        return;
+      if (!this.newMessage.trim() || !this.isConnected || !this.selectedGroup) return;
 
-      const messageData = {
-        content: this.newMessage.trim(),
-        senderUsername: this.currentUsername,
-      };
+      const messageData = { content: this.newMessage.trim(), senderUsername: this.currentUsername };
+      this.stompClient.publish({ destination: `/app/chat/${this.selectedGroup.id}`, body: JSON.stringify(messageData) });
 
-      this.stompClient.publish({
-        destination: `/app/chat/${this.selectedGroup.id}`,
-        body: JSON.stringify(messageData),
-      });
-
-      const localMessage = {
-        ...messageData,
-        timestamp: new Date().toISOString(),
-      };
-      this.messages.push(localMessage);
+      this.messages.push({ ...messageData, timestamp: new Date().toISOString() });
       this.$nextTick(() => this.scrollToBottom());
-
       this.newMessage = "";
     },
 
@@ -647,37 +543,14 @@ export default {
       if (!this.canCreateGroup) return;
 
       try {
-        const groupData = {
-          groupName: this.newGroupName.trim(),
-          adminId: this.currentUserId,
-          memberIds: this.selectedUserIds,
-        };
+        const groupData = { groupName: this.newGroupName.trim(), adminId: this.currentUserId, memberIds: this.selectedUserIds };
+        const res = await fetch(`${this.apiBaseUrl}/group-chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(groupData) });
 
-        const response = await fetch(`${this.apiBaseUrl}/group-chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(groupData),
-        });
-
-        if (response.ok) {
+        if (res.ok) {
           await this.fetchUserGroups();
-
-          const createdGroup = this.userGroups.find(
-            (g) => g.name === groupData.groupName
-          );
-
-          if (createdGroup) {
-            this.selectedGroup = createdGroup;
-            this.messages = [];
-            await this.fetchMessages(createdGroup.id);
-            this.connectToGroup(createdGroup.id);
-            await this.fetchGroupMembers(createdGroup.id); 
-          }
-
+          const createdGroup = this.userGroups.find(g => g.name === groupData.groupName);
+          if (createdGroup) this.selectGroup(createdGroup);
           this.closeCreateGroupModal();
-          console.log("Group created successfully");
-        } else {
-          throw new Error("Failed to create group");
         }
       } catch (error) {
         console.error("Error creating group:", error);
@@ -685,130 +558,54 @@ export default {
       }
     },
 
-async addMember(userId) {
-  if (!this.selectedGroup) return;
-
-  try {
-    const response = await fetch(
-      `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/add-member?userId=${userId}&adminUsername=${this.currentUsername}`,
-      { method: "PUT" }
-    );
-
-    if (response.ok) {
-      await this.fetchUserGroups();
-      const updatedGroup = this.userGroups.find(
-        (g) => g.id === this.selectedGroup.id
-      );
-      if (updatedGroup) {
-        this.selectedGroup = updatedGroup;
-        await this.fetchGroupMembers(updatedGroup.id); 
+    // --- REFRAKTOROVANO ZA REAL-TIME ---
+    async addMember(userId) {
+      if (!this.selectedGroup) return;
+      try {
+        const res = await fetch(`${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/add-member?userId=${userId}&adminUsername=${this.currentUsername}`, { method: "PUT" });
+        if (res.ok) {
+          const addedUser = this.allUsers.find(u => u.id === userId);
+          if (addedUser) this.selectedGroup.members.push(addedUser);
+          this.selectedUsersToAdd = this.selectedUsersToAdd.filter(id => id !== userId);
+        }
+      } catch (error) {
+        console.error("Error adding member:", error);
       }
-      console.log("Member added successfully");
-    } else {
-      throw new Error("Failed to add member");
-    }
-  } catch (error) {
-    console.error("Error adding member:", error);
-    alert("Failed to add member. Please try again.");
-  }
-},
+    },
 
     async addSelectedMembers() {
       if (!this.selectedGroup || this.selectedUsersToAdd.length === 0) return;
-
       try {
-        for (const userId of this.selectedUsersToAdd) {
+        for (const userId of [...this.selectedUsersToAdd]) {
           await this.addMember(userId);
         }
-        
         this.closeAddMembersModal();
-        console.log("Selected members added successfully");
       } catch (error) {
         console.error("Error adding selected members:", error);
-        alert("Failed to add some members. Please try again.");
       }
     },
 
-async removeMember(userId) {
-  if (!this.selectedGroup) return;
-
-  try {
-    const response = await fetch(
-      `${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/remove-member?userId=${userId}&adminUsername=${this.currentUsername}`,
-      { method: "PUT" }
-    );
-
-    if (response.ok) {
-      await this.fetchUserGroups();
-      const updatedGroup = this.userGroups.find(
-        (g) => g.id === this.selectedGroup.id
-      );
-      if (updatedGroup) {
-        this.selectedGroup = updatedGroup;
-        // Dodaj ovo:
-        await this.fetchGroupMembers(updatedGroup.id);
-      }
-      console.log("Member removed successfully");
-    } else {
-      throw new Error("Failed to remove member");
-    }
-  } catch (error) {
-    console.error("Error removing member:", error);
-    alert("Failed to remove member. Please try again.");
-  }
-},
-
-
-    openCreateGroupModal() {
-      console.log("Opening create group modal...");
-      this.debugState(); // Debug trenutno stanje
-      this.showCreateGroupModal = true;
-      console.log("showCreateGroupModal after setting:", this.showCreateGroupModal);
-    },
-
-    closeCreateGroupModal() {
-      this.showCreateGroupModal = false;
-      this.newGroupName = "";
-      this.selectedUserIds = [];
-    },
-
-    openManageMembersModal() {
-      console.log("Opening manage members modal...");
-      this.showManageMembersModal = true;
-      console.log("showManageMembersModal:", this.showManageMembersModal);
-    },
-
-    closeManageMembersModal() {
-      this.showManageMembersModal = false;
-    },
-
-    openAddMembersModal() {
-      console.log("Opening add members modal...");
-      this.selectedUsersToAdd = [];
-      this.showAddMembersModal = true;
-      console.log("showAddMembersModal:", this.showAddMembersModal);
-    },
-
-    closeAddMembersModal() {
-      this.showAddMembersModal = false;
-      this.selectedUsersToAdd = [];
-    },
-
-    formatTime(timestamp) {
-      if (!timestamp) return "";
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    },
-
-    scrollToBottom() {
-      if (this.$refs.messagesContainer) {
-        this.$refs.messagesContainer.scrollTop =
-          this.$refs.messagesContainer.scrollHeight;
+    async removeMember(userId) {
+      if (!this.selectedGroup) return;
+      try {
+        const res = await fetch(`${this.apiBaseUrl}/group-chat/${this.selectedGroup.id}/remove-member?userId=${userId}&adminUsername=${this.currentUsername}`, { method: "PUT" });
+        if (res.ok) {
+          this.selectedGroup.members = this.selectedGroup.members.filter(m => m.id !== userId);
+        }
+      } catch (error) {
+        console.error("Error removing member:", error);
       }
     },
+
+    openCreateGroupModal() { this.showCreateGroupModal = true; },
+    closeCreateGroupModal() { this.showCreateGroupModal = false; this.newGroupName = ""; this.selectedUserIds = []; },
+    openManageMembersModal() { this.showManageMembersModal = true; },
+    closeManageMembersModal() { this.showManageMembersModal = false; },
+    openAddMembersModal() { this.selectedUsersToAdd = []; this.showAddMembersModal = true; },
+    closeAddMembersModal() { this.showAddMembersModal = false; this.selectedUsersToAdd = []; },
+
+    formatTime(timestamp) { return timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""; },
+    scrollToBottom() { if (this.$refs.messagesContainer) this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight; },
   },
 };
 </script>
